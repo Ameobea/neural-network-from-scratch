@@ -1,0 +1,13 @@
+[package]
+name = "wasm_interface"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = { version = "=0.2.73", features = ["nightly"] }
+libnn = { path = "../libnn" }
+rand = "0.8"
+console_error_panic_hook = "0.1"

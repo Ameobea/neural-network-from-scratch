@@ -1,0 +1,103 @@
+// Sigmoid approximation and tansig approximation adopted from rnnoise: https://github.com/xiph/rnnoise/blob/1cbdbcf1283499bbb2230a6b0f126eb9b236defd/src/rnn.c#L41
+//
+// License:
+/* Copyright (c) 2008-2011 Octasic Inc.
+2012-2017 Jean-Marc Valin */
+/*
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   - Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR
+   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#[rustfmt::skip]
+static TANSIG_TABLE: [f32; 201] = [
+    0.000000f32, 0.039979f32, 0.079830f32, 0.119427f32, 0.158649f32,
+    0.197375f32, 0.235496f32, 0.272905f32, 0.309507f32, 0.345214f32,
+    0.379949f32, 0.413644f32, 0.446244f32, 0.477700f32, 0.507977f32,
+    0.537050f32, 0.564900f32, 0.591519f32, 0.616909f32, 0.641077f32,
+    0.664037f32, 0.685809f32, 0.706419f32, 0.725897f32, 0.744277f32,
+    0.761594f32, 0.777888f32, 0.793199f32, 0.807569f32, 0.821040f32,
+    0.833655f32, 0.845456f32, 0.856485f32, 0.866784f32, 0.876393f32,
+    0.885352f32, 0.893698f32, 0.901468f32, 0.908698f32, 0.915420f32,
+    0.921669f32, 0.927473f32, 0.932862f32, 0.937863f32, 0.942503f32,
+    0.946806f32, 0.950795f32, 0.954492f32, 0.957917f32, 0.961090f32,
+    0.964028f32, 0.966747f32, 0.969265f32, 0.971594f32, 0.973749f32,
+    0.975743f32, 0.977587f32, 0.979293f32, 0.980869f32, 0.982327f32,
+    0.983675f32, 0.984921f32, 0.986072f32, 0.987136f32, 0.988119f32,
+    0.989027f32, 0.989867f32, 0.990642f32, 0.991359f32, 0.992020f32,
+    0.992631f32, 0.993196f32, 0.993718f32, 0.994199f32, 0.994644f32,
+    0.995055f32, 0.995434f32, 0.995784f32, 0.996108f32, 0.996407f32,
+    0.996682f32, 0.996937f32, 0.997172f32, 0.997389f32, 0.997590f32,
+    0.997775f32, 0.997946f32, 0.998104f32, 0.998249f32, 0.998384f32,
+    0.998508f32, 0.998623f32, 0.998728f32, 0.998826f32, 0.998916f32,
+    0.999000f32, 0.999076f32, 0.999147f32, 0.999213f32, 0.999273f32,
+    0.999329f32, 0.999381f32, 0.999428f32, 0.999472f32, 0.999513f32,
+    0.999550f32, 0.999585f32, 0.999617f32, 0.999646f32, 0.999673f32,
+    0.999699f32, 0.999722f32, 0.999743f32, 0.999763f32, 0.999781f32,
+    0.999798f32, 0.999813f32, 0.999828f32, 0.999841f32, 0.999853f32,
+    0.999865f32, 0.999875f32, 0.999885f32, 0.999893f32, 0.999902f32,
+    0.999909f32, 0.999916f32, 0.999923f32, 0.999929f32, 0.999934f32,
+    0.999939f32, 0.999944f32, 0.999948f32, 0.999952f32, 0.999956f32,
+    0.999959f32, 0.999962f32, 0.999965f32, 0.999968f32, 0.999970f32,
+    0.999973f32, 0.999975f32, 0.999977f32, 0.999978f32, 0.999980f32,
+    0.999982f32, 0.999983f32, 0.999984f32, 0.999986f32, 0.999987f32,
+    0.999988f32, 0.999989f32, 0.999990f32, 0.999990f32, 0.999991f32,
+    0.999992f32, 0.999992f32, 0.999993f32, 0.999994f32, 0.999994f32,
+    0.999994f32, 0.999995f32, 0.999995f32, 0.999996f32, 0.999996f32,
+    0.999996f32, 0.999997f32, 0.999997f32, 0.999997f32, 0.999997f32,
+    0.999997f32, 0.999998f32, 0.999998f32, 0.999998f32, 0.999998f32,
+    0.999998f32, 0.999998f32, 0.999999f32, 0.999999f32, 0.999999f32,
+    0.999999f32, 0.999999f32, 0.999999f32, 0.999999f32, 0.999999f32,
+    0.999999f32, 0.999999f32, 0.999999f32, 0.999999f32, 0.999999f32,
+    1.000000f32, 1.000000f32, 1.000000f32, 1.000000f32, 1.000000f32,
+    1.000000f32, 1.000000f32, 1.000000f32, 1.000000f32, 1.000000f32,
+    1.000000f32,
+];
+
+pub fn tansig_approx(mut x: f32) -> f32 {
+    let i: i32;
+    let mut y: f32;
+    let dy: f32;
+    let mut sign: f32 = 1.;
+    /* Tests are reversed to catch NaNs */
+    if !(x < 8.) {
+        return 1.;
+    }
+    if !(x > -8.) {
+        return -1.;
+    }
+
+    if x < 0. {
+        x = -x;
+        sign = -1.;
+    }
+    i = (0.5f32 + 25. * x).floor() as i32;
+    x -= 0.04f32 * i as f32;
+
+    y = if cfg!(debug_assertions) {
+        TANSIG_TABLE[i as usize]
+    } else {
+        unsafe { *TANSIG_TABLE.get_unchecked(i as usize) }
+    };
+    dy = 1. - y * y;
+    y = y + x * dy * (1. - y * x);
+    return sign * y;
+}
+
+pub fn sigmoid_approx(x: f32) -> f32 { return 0.5 + 0.5 * tansig_approx(0.5 * x); }

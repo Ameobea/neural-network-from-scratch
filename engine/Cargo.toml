@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "libnn",
+  "wasm_interface",
+  "driver"
+]

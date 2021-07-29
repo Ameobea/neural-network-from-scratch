@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #080808;
+  color: #edeeed;
+  font-family: 'PT Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+}
+
+.app h1 {
+  text-align: center;
+}
+
+.app .content {
+  display: flex;
+  flex-direction: row;
+}

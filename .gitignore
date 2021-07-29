@@ -1,0 +1,5 @@
+dist
+node_modules
+engine/target
+build
+src/wasm_interface*
