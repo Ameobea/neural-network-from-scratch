@@ -28,7 +28,8 @@ pub trait ActivationFunction {
         debug_assert_eq!(errors.len(), outputs_before_activation.len());
         for i in 0..dst.len() {
             unsafe {
-                *dst.get_unchecked_mut(i) = *errors.get_unchecked(i) * *outputs_before_activation.get_unchecked(i);
+                *dst.get_unchecked_mut(i) =
+                    *errors.get_unchecked(i) * self.derivative(*outputs_before_activation.get_unchecked(i));
             }
         }
     }
@@ -327,7 +328,7 @@ impl DenseLayer {
         }
     }
 
-    // #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn update_biases(&mut self, learning_rate: Weight) {
         for neuron_ix in 0..self.biases.len() {
             // Each of these biases is added directly to what is fed into our activation function.
@@ -547,7 +548,9 @@ impl Network {
         self.outputs.forward_propagate(inputs);
     }
 
-    pub fn train_one_example(&mut self, example: &[Weight], expected: &[f32], learning_rate: f32) {
+    /// Returns the average cost of the output before updating weights.  It would be better to compute again after, but
+    /// that would be too expensive
+    pub fn train_one_example(&mut self, example: &[Weight], expected: &[Weight], learning_rate: Weight) -> Weight {
         // Run the example all the way through the network, populating outputs in the output layer.
         self.forward_propagate(example);
 
@@ -583,6 +586,8 @@ impl Network {
         }
 
         // That's it, we've successfully "learned"
+        let total_cost = self.outputs.costs.iter().fold(0., |acc, cost| acc + *cost);
+        total_cost / self.outputs.costs.len() as Weight
     }
 
     pub fn compute<'a>(&'a mut self, inputs: &[Weight]) -> &'a [Weight] {

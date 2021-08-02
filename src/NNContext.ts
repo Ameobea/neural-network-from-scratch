@@ -4,7 +4,7 @@ import * as Comlink from 'comlink';
 import { randomFloatInRange } from './util';
 import { buildDefaultNetworkDefinition, NeuralNetworkDefinition } from './types';
 import type { NNWorkerCtx } from './nn-worker.worker';
-import type { ResponseMatrix } from './ResponseViz';
+import type { ResponseMatrix } from './Charts/ResponseViz';
 
 const nnWorker = Comlink.wrap<NNWorkerCtx>(
   new Worker(new URL('./nn-worker.worker.ts', import.meta.url))
@@ -20,7 +20,7 @@ export class NNContext {
     sourceFn: (inputs: Float32Array) => Float32Array,
     iterations: number,
     inputRange: [number, number]
-  ) {
+  ): Promise<Float32Array> {
     if (!(await nnWorker.getIsInitialized())) {
       throw new UnreachableException('Not initialized');
     }
@@ -42,7 +42,8 @@ export class NNContext {
 
     return nnWorker.trainBatch(
       Comlink.transfer(examples, [examples.buffer]),
-      Comlink.transfer(expecteds, [expecteds.buffer])
+      Comlink.transfer(expecteds, [expecteds.buffer]),
+      this.definition.outputLayer.learningRate
     );
   }
 

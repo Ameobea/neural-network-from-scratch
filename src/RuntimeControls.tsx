@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ControlPanel from 'react-control-panel';
 import { UnreachableException } from 'ameo-utils';
 
 import { NNContext } from './NNContext';
-import ResponseViz, { ResponseMatrix } from './ResponseViz';
+import { ResponseMatrix } from './Charts/ResponseViz';
+import { ResponseViz, CostsPlot } from './Charts';
 import './RuntimeControls.css';
+import { useReducer } from 'react';
 
 interface OutputData {
   responseMatrix: ResponseMatrix;
+  costs: number[];
 }
 
 interface OutputDataDisplayProps extends OutputData {
@@ -19,9 +22,13 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   nnCtx,
   responseMatrix,
   sourceFn,
+  costs,
 }) => {
   return (
-    <ResponseViz nnCtx={nnCtx} data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
+    <div className='charts'>
+      <ResponseViz nnCtx={nnCtx} data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
+      <CostsPlot costs={costs} />
+    </div>
   );
 };
 
@@ -67,7 +74,7 @@ const buildSourceFn = (fnType: SourceFnType) => {
 const buildSettings = (
   nnCtx: NNContext,
   sourceFn: (inputs: Float32Array) => Float32Array,
-  setOutputData: (data: OutputData) => void
+  setOutputData: (action: { responseMatrix: ResponseMatrix; costs: Float32Array | null }) => void
 ) => [
   {
     type: 'select',
@@ -89,7 +96,7 @@ const buildSettings = (
         return;
       }
 
-      setOutputData({ responseMatrix: [] });
+      setOutputData({ responseMatrix: [], costs: null });
       await nnCtx.uninit();
     },
   },
@@ -106,16 +113,16 @@ const buildSettings = (
       }
 
       nnCtx.isRunning = true;
-      await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
+      let costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-      setOutputData({ responseMatrix });
+      setOutputData({ responseMatrix, costs });
 
       for (let i = 0; i < 20; i++) {
-        nnCtx.trainWithSourceFunction(sourceFn, 50_000, [0, 1]);
+        costs = await nnCtx.trainWithSourceFunction(sourceFn, 50_000, [0, 1]);
 
         const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-        setOutputData({ responseMatrix });
+        setOutputData({ responseMatrix, costs });
       }
 
       nnCtx.isRunning = false;
@@ -131,13 +138,14 @@ const buildSettings = (
 
       if (!(await nnCtx.getIsInitialized())) {
         await nnCtx.init(nnCtx.definition);
+        setOutputData({ responseMatrix: [], costs: null });
       }
 
       nnCtx.isRunning = true;
-      nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
+      const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-      setOutputData({ responseMatrix });
+      setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
     },
   },
@@ -154,21 +162,38 @@ const buildSettings = (
       }
 
       nnCtx.isRunning = true;
-      nnCtx.trainWithSourceFunction(sourceFn, 1, [0, 1]);
+      const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1, [0, 1]);
 
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-      setOutputData({ responseMatrix });
+      setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
     },
   },
 ];
 
+type OutputDataAction = {
+  responseMatrix: ResponseMatrix;
+  costs: Float32Array | null;
+};
+
+const outputDataReducer = (state: OutputData, action: OutputDataAction): OutputData => ({
+  responseMatrix: action.responseMatrix,
+  costs: action.costs ? [...state.costs, ...action.costs] : [],
+});
+
 const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
-  const [outputData, setOutputData] = useState<OutputData>({ responseMatrix: [] });
+  const [outputData, dispatchOutputData] = useReducer(outputDataReducer, {
+    responseMatrix: [],
+    costs: [],
+  } as OutputData);
   const [{ sourceFn }, setSourceFn] = useState({
     sourceFn: buildSourceFn(SourceFnType.ComplexFancy),
   });
-  const settings = useMemo(() => buildSettings(nnCtx, sourceFn, setOutputData), [nnCtx, sourceFn]);
+  const setOutputData = useCallback((action: OutputDataAction) => dispatchOutputData(action), []);
+  const settings = useMemo(
+    () => buildSettings(nnCtx, sourceFn, setOutputData),
+    [nnCtx, setOutputData, sourceFn]
+  );
 
   return (
     <div className='runtime-controls'>

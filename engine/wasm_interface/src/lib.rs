@@ -228,10 +228,10 @@ pub fn create_nn_ctx(
 pub fn free_nn_ctx(ctx: *mut NNCtx) { unsafe { drop(Box::from_raw(ctx)) } }
 
 #[wasm_bindgen]
-pub fn train(ctx: *mut NNCtx, example: &[Weight], expected: &[Weight], learning_rate: Weight) {
+pub fn train(ctx: *mut NNCtx, example: &[Weight], expected: &[Weight], learning_rate: Weight) -> Weight {
     let network: &mut Network = unsafe { &mut (*ctx).network };
 
-    network.train_one_example(example, expected, learning_rate);
+    network.train_one_example(example, expected, learning_rate)
 }
 
 #[wasm_bindgen]

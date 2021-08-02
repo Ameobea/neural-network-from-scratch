@@ -2,12 +2,6 @@ export const buildDefaultNetworkDefinition = (): NeuralNetworkDefinition => ({
   inputLayer: { neuronCount: 2 },
   hiddenLayers: [
     {
-      neuronCount: 128,
-      activationFunctionType: ActivationFunctionType.ReLU,
-      initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-      initBiasesFnDefinition: { type: 'constant', val: 0 },
-    },
-    {
       neuronCount: 64,
       activationFunctionType: ActivationFunctionType.ReLU,
       initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
@@ -25,7 +19,7 @@ export const buildDefaultNetworkDefinition = (): NeuralNetworkDefinition => ({
     activationFunctionType: ActivationFunctionType.Sigmoid,
     costFunctionType: CostFunctionType.MeanSquaredError,
     initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-    learningRate: 0.003,
+    learningRate: 0.15,
   },
 });
 

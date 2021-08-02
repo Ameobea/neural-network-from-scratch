@@ -1,13 +1,9 @@
 import EChartsReactCore from 'echarts-for-react/lib/core';
 import React from 'react';
 import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { VisualMapComponent } from 'echarts/components';
 import 'echarts-gl';
 
-echarts.use([CanvasRenderer, VisualMapComponent]);
-
-import { NNContext } from './NNContext';
+import type { NNContext } from '../NNContext';
 
 export type ResponseMatrix = [number, number, number][];
 

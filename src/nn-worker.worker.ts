@@ -11,7 +11,6 @@ import {
   buildWeightInitParts,
   NeuralNetworkDefinition,
 } from './types';
-import type { ResponseMatrix } from './ResponseViz';
 
 const engineModule = import('./wasm_interface');
 
@@ -125,19 +124,28 @@ export class NNWorkerCtx {
     return !!this.ctxPtr;
   }
 
-  public trainBatch(examples: Float32Array, expecteds: Float32Array) {
+  public trainBatch(
+    examples: Float32Array,
+    expecteds: Float32Array,
+    learningRate: number
+  ): Float32Array {
     if (!this.ctxPtr) {
       throw new UnreachableException('Not initialized');
     }
 
     const inputDims = this.definition.inputLayer.neuronCount;
     const outputDims = this.definition.outputLayer.neuronCount;
+    const iterations = examples.length / inputDims;
+    const costs = new Float32Array(iterations);
 
-    for (let i = 0; i < examples.length / inputDims; i++) {
+    for (let i = 0; i < iterations; i++) {
       const example = examples.subarray(i * inputDims, i * inputDims + inputDims);
       const expected = expecteds.subarray(i * outputDims, i * outputDims + outputDims);
-      this.engine.train(this.ctxPtr!, example, expected, this.definition.outputLayer.learningRate);
+      const cost = this.engine.train(this.ctxPtr!, example, expected, learningRate);
+      costs[i] = cost;
     }
+
+    return costs;
   }
 }
 
