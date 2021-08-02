@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 import './App.css';
-import Loading from './Loading';
 import NetworkConfigurator from './NetworkConfigurator';
-import { buildNNContext, NNContext } from './NNContext';
+import { NNContext } from './NNContext';
 import RuntimeControls from './RuntimeControls';
 
 const Content: React.FC<{ nnCtx: NNContext }> = ({ nnCtx }) => (
@@ -13,20 +12,14 @@ const Content: React.FC<{ nnCtx: NNContext }> = ({ nnCtx }) => (
   </div>
 );
 
+const nnCtx = new NNContext();
+(window as any).ctx = nnCtx;
+
 const App: React.FC = () => {
-  const [nnCtx, setNNCtx] = useState<null | NNContext>(null);
-
-  useEffect(() => {
-    buildNNContext().then(ctx => {
-      setNNCtx(ctx);
-      (window as any).ctx = ctx;
-    });
-  }, []);
-
   return (
     <div className='app'>
-      <h1>Neural Network Visualization</h1>
-      {!nnCtx ? <Loading /> : <Content nnCtx={nnCtx} />}
+      {/* <h1>Neural Network Visualization</h1> */}
+      <Content nnCtx={nnCtx} />
     </div>
   );
 };

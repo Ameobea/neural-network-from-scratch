@@ -11,10 +11,10 @@ import {
   HiddenLayerDefinition,
   InputLayerDefinition,
   NeuralNetworkDefinition,
-  NNContext,
   OutputLayerDefinition,
-} from './NNContext';
+} from './types';
 import './NetworkConfigurator.css';
+import type { NNContext } from './NNContext';
 
 interface NetworkConfiguratorProps {
   nnCtx: NNContext;
@@ -35,7 +35,7 @@ const InputLayerConfigurator: React.FC<InputLayerConfiguratorProps> = ({ layer, 
   return (
     <ControlPanel
       title='input layer'
-      style={{ marginBottom: 20 }}
+      style={{ marginBottom: 20, width: 400 }}
       state={state}
       settings={INPUT_LAYER_SETTINGS}
       onChange={(key: string, val: any) => {
@@ -60,7 +60,7 @@ const InputLayerConfigurator: React.FC<InputLayerConfiguratorProps> = ({ layer, 
 };
 
 const buildHiddenLayerSettings = (onDelete: () => void) => [
-  { type: 'range', label: 'neuron count', min: 1, max: 64, step: 1 },
+  { type: 'range', label: 'neuron count', min: 1, max: 128, step: 1 },
   {
     type: 'select',
     label: 'activation function',
@@ -98,6 +98,7 @@ const HiddenLayerConfigurator: React.FC<HiddenLayerConfiguratorProps> = ({
   return (
     <ControlPanel
       title={`hidden layer ${layerIx + 1}`}
+      style={{ width: 400 }}
       state={state}
       settings={buildHiddenLayerSettings(onDelete)}
       onChange={(key: string, val: any) => {
@@ -148,14 +149,25 @@ const OUTPUT_LAYER_SETTINGS = [
       'mean squared error': CostFunctionType.MeanSquaredError,
     },
   },
+  {
+    type: 'range',
+    label: 'learning rate',
+    scale: 'log',
+    min: 0.0001,
+    max: 1,
+    initial: 0.5,
+  },
 ];
 
 const OutputLayerConfigurator: React.FC<OutputLayerConfiguratorProps> = ({ layer, onChange }) => {
-  const state = useMemo(() => ({ 'neuron count': layer.neuronCount }), [layer.neuronCount]);
+  const state = useMemo(
+    () => ({ 'neuron count': layer.neuronCount, 'learning rate': layer.learningRate }),
+    [layer.learningRate, layer.neuronCount]
+  );
 
   return (
     <ControlPanel
-      style={{ marginTop: 20 }}
+      style={{ marginTop: 20, width: 400 }}
       title='output layer'
       state={state}
       settings={OUTPUT_LAYER_SETTINGS}
@@ -175,6 +187,13 @@ const OutputLayerConfigurator: React.FC<OutputLayerConfiguratorProps> = ({ layer
           }
           case 'cost function': {
             newDef.costFunctionType = +val;
+            break;
+          }
+          case 'learning rate': {
+            if (Number.isNaN(+val)) {
+              return;
+            }
+            newDef.learningRate = +val;
             break;
           }
           default: {
@@ -227,6 +246,7 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
         />
       ))}
       <ControlPanel
+        style={{ width: 400 }}
         settings={[
           {
             type: 'button',

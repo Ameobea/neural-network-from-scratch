@@ -35,8 +35,8 @@
     "webpack-dev-server": "^3.11.2"
   },
   "scripts": {
-    "start": "webpack serve",
-    "build": "webpack --config webpack.prod.js && cp -r ./public/* ./dist",
+    "start": "webpack serve --compress",
+    "build": "webpack --config webpack.prod.js",
     "lint": "eslint \"./src/**/*.@(ts|tsx|js|jsx)\""
   },
   "dependencies": {
@@ -47,6 +47,7 @@
     "@types/react-dom": "^17.0.7",
     "@types/react-redux": "^7.1.16",
     "ameo-utils": "^0.7.2",
+    "comlink": "^4.3.1",
     "echarts": "^5.1.2",
     "echarts-for-react": "^3.0.1",
     "echarts-gl": "^2.0.7",

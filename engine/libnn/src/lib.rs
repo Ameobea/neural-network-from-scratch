@@ -15,6 +15,23 @@ pub trait ActivationFunction {
     fn get_output(&self, x: Weight) -> Weight;
 
     fn derivative(&self, x: Weight) -> Weight;
+
+    fn apply_batch(&self, dst: &mut [Weight], src: &[Weight]) {
+        debug_assert_eq!(src.len(), dst.len());
+        for i in 0..dst.len() {
+            unsafe { *dst.get_unchecked_mut(i) = self.get_output(*src.get_unchecked(i)) };
+        }
+    }
+
+    fn apply_derivative_batch(&self, dst: &mut [Weight], errors: &[Weight], outputs_before_activation: &[Weight]) {
+        debug_assert_eq!(dst.len(), errors.len());
+        debug_assert_eq!(errors.len(), outputs_before_activation.len());
+        for i in 0..dst.len() {
+            unsafe {
+                *dst.get_unchecked_mut(i) = *errors.get_unchecked(i) * *outputs_before_activation.get_unchecked(i);
+            }
+        }
+    }
 }
 
 pub struct Sigmoid;
@@ -69,6 +86,53 @@ impl ActivationFunction for ReLU {
             0.
         }
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn apply_batch(&self, dst: &mut [Weight], src: &[Weight]) {
+        debug_assert_eq!(src.len(), dst.len());
+        let remainder = src.len() % 4;
+        let chunk_count = (src.len() - remainder) / 4;
+        let zero_v = f32x4_splat(0.);
+
+        for chunk_ix in 0..chunk_count {
+            let src = unsafe { v128_load(src.as_ptr().add(chunk_ix * 4) as *const _) };
+            unsafe { v128_store(dst.as_mut_ptr().add(chunk_ix * 4) as *mut _, f32x4_pmax(zero_v, src)) }
+        }
+        for remainder_ix in (chunk_count * 4)..src.len() {
+            unsafe { *dst.get_unchecked_mut(remainder_ix) = self.get_output(*src.get_unchecked(remainder_ix)) };
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn apply_derivative_batch(&self, dst: &mut [Weight], errors: &[Weight], outputs_before_activation: &[Weight]) {
+        debug_assert_eq!(dst.len(), errors.len());
+        debug_assert_eq!(errors.len(), outputs_before_activation.len());
+
+        let remainder = dst.len() % 4;
+        let chunk_count = (dst.len() - remainder) / 4;
+        let zero_v = f32x4_splat(0.);
+
+        for chunk_ix in 0..chunk_count {
+            let outputs = unsafe { v128_load(outputs_before_activation.as_ptr().add(chunk_ix * 4) as *const _) };
+            let errors = unsafe { v128_load(errors.as_ptr().add(chunk_ix * 4) as *const _) };
+            let gt_mask = f32x4_gt(outputs, zero_v);
+            unsafe {
+                v128_store(
+                    dst.as_mut_ptr().add(chunk_ix * 4) as *mut _,
+                    v128_bitselect(errors, zero_v, gt_mask),
+                );
+            }
+        }
+        for remainder_ix in (chunk_count * 4)..dst.len() {
+            unsafe {
+                *dst.get_unchecked_mut(remainder_ix) = if *outputs_before_activation.get_unchecked(remainder_ix) > 0. {
+                    *errors.get_unchecked(remainder_ix)
+                } else {
+                    0.
+                }
+            };
+        }
+    }
 }
 
 pub trait CostFunction {
@@ -99,6 +163,7 @@ pub struct DenseLayer {
     pub biases: Vec<Weight>,
     pub neuron_gradients: Vec<Weight>,
     pub activation_fn: &'static dyn ActivationFunction,
+    pub errors_scratch: Vec<Weight>,
     pub outputs_before_activation: Vec<Weight>,
     pub outputs: Vec<Weight>,
 }
@@ -121,13 +186,12 @@ impl DenseLayer {
             biases[neuron_ix] = init_biases(neuron_ix);
         }
 
-        let neuron_gradients = vec![0.; neuron_count];
-
         DenseLayer {
             weights,
             biases,
-            neuron_gradients,
+            neuron_gradients: vec![0.; neuron_count],
             activation_fn,
+            errors_scratch: vec![0.; neuron_count],
             outputs_before_activation: vec![0.; neuron_count],
             outputs: vec![0.; neuron_count],
         }
@@ -142,10 +206,9 @@ impl DenseLayer {
     }
 
     /// Calculates the gradients for each neuron and populates `self.neuron_gradients`.
-    #[inline(never)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn compute_gradients(&mut self, output_weights: &[Vec<Weight>], gradient_of_output_neurons: &[Weight]) {
         debug_assert_eq!(output_weights.len(), gradient_of_output_neurons.len());
-        // debug_assert_eq!(output_weights[0].len(), self.weights.len());
 
         for neuron_ix in 0..self.weights.len() {
             let output_before_activation = self.outputs_before_activation[neuron_ix];
@@ -163,8 +226,54 @@ impl DenseLayer {
         }
     }
 
+    /// Calculates the gradients for each neuron and populates `self.neuron_gradients`.
+    #[cfg(target_arch = "wasm32")]
+    pub fn compute_gradients(&mut self, output_weights: &[Vec<Weight>], gradient_of_output_neurons: &[Weight]) {
+        debug_assert_eq!(output_weights.len(), gradient_of_output_neurons.len());
+
+        // Accumulate errors into the scratch buffer
+        let remainder = self.errors_scratch.len() % 4;
+        let chunk_count = (self.errors_scratch.len() - remainder) / 4;
+        self.errors_scratch.fill(0.);
+
+        for output_neuron_ix in 0..gradient_of_output_neurons.len() {
+            let output_weights_for_neuron = unsafe { &output_weights.get_unchecked(output_neuron_ix) };
+            let gradient_of_output_neuron =
+                unsafe { v128_load32_splat(gradient_of_output_neurons.as_ptr().add(output_neuron_ix) as *const _) };
+
+            for chunk_ix in 0..chunk_count {
+                // let gradient_of_output_neuron =
+                //     unsafe { v128_load(gradient_of_output_neurons.as_ptr().add(chunk_ix * 4) as *const _) };
+                let errors = unsafe { v128_load(self.errors_scratch.as_ptr().add(chunk_ix * 4) as *const _) };
+                let output_weights =
+                    unsafe { v128_load(output_weights_for_neuron.as_ptr().add(chunk_ix * 4) as *const _) };
+
+                unsafe {
+                    v128_store(
+                        self.errors_scratch.as_mut_ptr().add(chunk_ix * 4) as *mut _,
+                        f32x4_add(errors, f32x4_mul(output_weights, gradient_of_output_neuron)),
+                    )
+                }
+            }
+
+            // remainders
+            for neuron_ix in (chunk_count * 4)..gradient_of_output_neurons.len() {
+                unsafe {
+                    *self.errors_scratch.get_unchecked_mut(neuron_ix) += *output_weights_for_neuron
+                        .get_unchecked(neuron_ix)
+                        * *gradient_of_output_neurons.get_unchecked(neuron_ix);
+                }
+            }
+        }
+
+        (self.activation_fn).apply_derivative_batch(
+            &mut self.neuron_gradients,
+            &self.errors_scratch,
+            &self.outputs_before_activation,
+        );
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline(never)]
     pub fn update_weights(&mut self, inputs: &[Weight], learning_rate: Weight) {
         for (neuron_ix, &neuron_gradient) in self.neuron_gradients.iter().enumerate() {
             for (weight_ix, weight) in self.weights[neuron_ix].iter_mut().enumerate() {
@@ -174,7 +283,6 @@ impl DenseLayer {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline(never)]
     pub fn update_weights(&mut self, inputs: &[Weight], learning_rate: Weight) {
         let input_count = inputs.len();
         let remainder = input_count % 4;
@@ -184,7 +292,11 @@ impl DenseLayer {
 
         for (neuron_ix, &neuron_gradient) in self.neuron_gradients.iter().enumerate() {
             let neuron_gradient_v = f32x4_splat(neuron_gradient);
-            let weights_for_neuron = &mut self.weights[neuron_ix];
+            let weights_for_neuron = if cfg!(debug_assertions) {
+                &mut self.weights[neuron_ix]
+            } else {
+                unsafe { self.weights.get_unchecked_mut(neuron_ix) }
+            };
             let weights_for_neuron_ptr = weights_for_neuron.as_ptr();
 
             for chunk_ix in 0..chunk_count {
@@ -199,13 +311,23 @@ impl DenseLayer {
                 }
             }
             for weight_ix in (chunk_count * 4)..input_count {
-                let weight = &mut weights_for_neuron[weight_ix];
-                *weight += learning_rate * neuron_gradient * inputs[weight_ix];
+                let (weight, input) = if cfg!(debug_assertions) {
+                    (&mut weights_for_neuron[weight_ix], inputs[weight_ix])
+                } else {
+                    unsafe {
+                        (
+                            weights_for_neuron.get_unchecked_mut(weight_ix),
+                            *inputs.get_unchecked(weight_ix),
+                        )
+                    }
+                };
+
+                *weight += learning_rate * neuron_gradient * input;
             }
         }
     }
 
-    #[inline(never)]
+    // #[cfg(not(target_arch = "wasm32"))]
     pub fn update_biases(&mut self, learning_rate: Weight) {
         for neuron_ix in 0..self.biases.len() {
             // Each of these biases is added directly to what is fed into our activation function.
@@ -216,19 +338,47 @@ impl DenseLayer {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn update_biases(&mut self, learning_rate: Weight) {
+        let remainder = self.biases.len() % 4;
+        let chunk_count = (self.biases.len() - remainder) / 4;
+        let learning_rate_v = f32x4_splat(learning_rate);
+
+        for chunk_ix in 0..chunk_count {
+            let biases = unsafe { v128_load(self.biases.as_ptr().add(chunk_ix * 4) as *const _) };
+            let gradients = unsafe { v128_load(self.neuron_gradients.as_ptr().add(chunk_ix * 4) as *const _) };
+
+            unsafe {
+                v128_store(
+                    self.biases.as_mut_ptr().add(chunk_ix * 4) as *mut _,
+                    f32x4_add(biases, f32x4_mul(gradients, learning_rate_v)),
+                )
+            }
+        }
+        for remainder_ix in (chunk_count * 4)..self.biases.len() {
+            unsafe {
+                *self.biases.get_unchecked_mut(remainder_ix) +=
+                    *self.neuron_gradients.get_unchecked(remainder_ix) * learning_rate;
+            }
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn forward_propagate(&mut self, inputs: &[Weight]) {
         debug_assert_eq!(self.weights[0].len(), inputs.len());
         for neuron_ix in 0..self.weights.len() {
             let mut weight_sum = 0.;
-            for (weight_ix, &weight) in self.weights[neuron_ix].iter().enumerate() {
+            for (weight_ix, &weight) in unsafe { self.weights.get_unchecked(neuron_ix) }.iter().enumerate() {
                 let input = inputs[weight_ix];
                 weight_sum += input * weight;
             }
 
-            self.outputs_before_activation[neuron_ix] = weight_sum + self.biases[neuron_ix];
-            self.outputs[neuron_ix] = (self.activation_fn).get_output(weight_sum + self.biases[neuron_ix]);
+            unsafe {
+                *self.outputs_before_activation.get_unchecked_mut(neuron_ix) = weight_sum + self.biases[neuron_ix]
+            };
         }
+
+        (self.activation_fn).apply_batch(&mut self.outputs, &self.outputs_before_activation);
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -241,7 +391,7 @@ impl DenseLayer {
         let inputs_ptr = inputs.as_ptr();
 
         for neuron_ix in 0..self.weights.len() {
-            let weights_ptr = self.weights[neuron_ix].as_ptr();
+            let weights_ptr = unsafe { (*self.weights.get_unchecked_mut(neuron_ix)).as_ptr() };
             let mut weight_sum_v = f32x4_splat(0.);
             let mut weight_sum_v_stored: [f32; 4] = [0.; 4];
 
@@ -259,14 +409,18 @@ impl DenseLayer {
                 weight_sum += partial_sum;
             }
             for weight_ix in (chunk_count * 4)..input_count {
-                let input = inputs[weight_ix];
-                let weight = self.weights[neuron_ix][weight_ix];
+                let input = unsafe { *inputs.get_unchecked(weight_ix) };
+                let weight = unsafe { *self.weights.get_unchecked(neuron_ix).get_unchecked(weight_ix) };
                 weight_sum += input * weight;
             }
 
-            self.outputs_before_activation[neuron_ix] = weight_sum + self.biases[neuron_ix];
-            self.outputs[neuron_ix] = (self.activation_fn).get_output(weight_sum + self.biases[neuron_ix]);
+            unsafe {
+                *self.outputs_before_activation.get_unchecked_mut(neuron_ix) =
+                    weight_sum + *self.biases.get_unchecked(neuron_ix);
+            }
         }
+
+        (self.activation_fn).apply_batch(&mut self.outputs, &self.outputs_before_activation);
     }
 }
 
@@ -322,13 +476,13 @@ impl OutputLayer {
 
             // No bias on the output layer.
             self.outputs_before_activation[neuron_ix] = sum;
-            self.outputs[neuron_ix] = (self.activation_fn).get_output(sum);
         }
+
+        (self.activation_fn).apply_batch(&mut self.outputs, &self.outputs_before_activation);
     }
 
     /// Once `compute()` has been called, calculates the cost using the error for each output value
     /// and populates `self.costs.
-    #[inline(never)]
     pub fn compute_costs(&mut self, expected: &[Weight]) {
         debug_assert_eq!(expected.len(), self.outputs.len());
         // Assumes that outputs have already been computed.
@@ -345,7 +499,6 @@ impl OutputLayer {
 
     /// Once `compute_costs()` has been called, calculates the gradients for each neuron and
     /// populates `self.neuron_gradients.
-    #[inline(never)]
     pub fn compute_gradients(&mut self) {
         // Assumes that costs have already been computed.
         for (neuron_ix, &neuron_error) in self.errors.iter().enumerate() {
@@ -354,7 +507,6 @@ impl OutputLayer {
         }
     }
 
-    #[inline(never)]
     pub fn update_weights(&mut self, inputs: &[Weight], learning_rate: Weight) {
         for (neuron_ix, &neuron_gradient) in self.neuron_gradients.iter().enumerate() {
             for (weight_ix, weight) in self.weights[neuron_ix].iter_mut().enumerate() {
@@ -363,7 +515,6 @@ impl OutputLayer {
         }
     }
 
-    #[inline(never)]
     pub fn forward_propagate(&mut self, inputs: &[Weight]) {
         debug_assert_eq!(self.weights[0].len(), inputs.len());
         for neuron_ix in 0..self.weights.len() {
@@ -373,8 +524,9 @@ impl OutputLayer {
                 weight_sum += input * weight;
             }
             self.outputs_before_activation[neuron_ix] = weight_sum;
-            self.outputs[neuron_ix] = (self.activation_fn).get_output(weight_sum);
         }
+
+        (self.activation_fn).apply_batch(&mut self.outputs, &self.outputs_before_activation);
     }
 }
 

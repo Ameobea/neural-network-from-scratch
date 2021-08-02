@@ -1,4 +1,10 @@
-#![feature(box_syntax, label_break_value, try_blocks, const_maybe_uninit_assume_init)]
+#![feature(
+    box_syntax,
+    label_break_value,
+    try_blocks,
+    const_maybe_uninit_assume_init,
+    thread_local
+)]
 
 use libnn::{
     ActivationFunction, CostFunction, DenseLayer, Network, OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR, RELU,
@@ -6,6 +12,14 @@ use libnn::{
 };
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = Math)]
+    fn random() -> f32;
+}
+
+fn js_random() -> f32 { random() }
 
 pub struct NNCtx {
     pub network: Network,
@@ -52,6 +66,9 @@ pub enum InitWeightFnDefinition {
     // NormalDistribution { mean: Weight, std_deviation: Weight },
 }
 
+#[thread_local]
+pub static mut RNG: pcg::Pcg = unsafe { std::mem::transmute((0u64, 0u64)) };
+
 impl InitWeightFnDefinition {
     pub fn from_parts(fn_type: u8, arg0: Weight, arg1: Weight) -> Self {
         match fn_type {
@@ -66,7 +83,7 @@ impl InitWeightFnDefinition {
         match self {
             InitWeightFnDefinition::Constant(val) => box move |_, _| val,
             InitWeightFnDefinition::ContinousUniformDistribution { min, max } =>
-                box move |_, _| rand::thread_rng().gen_range(min..max),
+                box move |_, _| unsafe { &mut RNG }.gen_range(min, max),
         }
     }
 
@@ -74,7 +91,7 @@ impl InitWeightFnDefinition {
         match self {
             InitWeightFnDefinition::Constant(val) => box move |_| val,
             InitWeightFnDefinition::ContinousUniformDistribution { min, max } =>
-                box move |_| rand::thread_rng().gen_range(min..max),
+                box move |_| unsafe { &mut RNG }.gen_range(min, max),
         }
     }
 }
@@ -152,6 +169,9 @@ fn maybe_init() {
     unsafe { DID_INIT = true };
 
     console_error_panic_hook::set_once();
+    let (seed1, seed2) = (js_random(), js_random());
+    let seed: u64 = unsafe { std::mem::transmute((seed1, seed2)) };
+    unsafe { RNG = pcg::Pcg::seed_from_u64(seed) };
 }
 
 #[wasm_bindgen]

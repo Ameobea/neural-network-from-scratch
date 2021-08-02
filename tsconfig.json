@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "amd",
-    "target": "es6",
+    "module": "esnext",
+    "target": "esnext",
     "resolveJsonModule": true,
     "allowJs": true,
     "moduleResolution": "node",
@@ -12,8 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "strictFunctionTypes": false, // This is required by Jantix
     "strict": true,
-    "noStrictGenericChecks": true,
-    "allowSyntheticDefaultImports": true,
+    "noStrictGenericChecks": false,
     "esModuleInterop": true,
     "suppressImplicitAnyIndexErrors": false,
     "noUnusedLocals": true,

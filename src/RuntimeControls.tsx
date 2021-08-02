@@ -25,45 +25,6 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   );
 };
 
-const computeResponseMatrix = (
-  nnCtx: NNContext,
-  steps: number,
-  inputRange: [number, number]
-): ResponseMatrix => {
-  const responseMatrix: ResponseMatrix = [];
-
-  if (
-    nnCtx.definition.inputLayer.neuronCount !== 2 ||
-    nnCtx.definition.outputLayer.neuronCount !== 1
-  ) {
-    throw new UnreachableException('Only 2-input, 1-output networks are supported');
-  }
-  if (!nnCtx.ctxPtr) {
-    throw new UnreachableException();
-  }
-
-  const range = inputRange[1] - inputRange[0];
-  const stepSize = range / steps;
-  for (let aStepIx = 0; aStepIx < steps; aStepIx++) {
-    const a = aStepIx * stepSize + inputRange[0];
-    const example = new Float32Array([a, 0]);
-    const outputs = nnCtx.engine.predict_batch(
-      nnCtx.ctxPtr,
-      example,
-      1,
-      inputRange[0],
-      inputRange[1],
-      steps
-    );
-    outputs.forEach((c, bStepIx) => {
-      const b = bStepIx * stepSize + inputRange[0];
-      responseMatrix.push([a, b, c]);
-    });
-  }
-
-  return responseMatrix;
-};
-
 interface RuntimeControlsProps {
   nnCtx: NNContext;
 }
@@ -123,68 +84,81 @@ const buildSettings = (
   {
     type: 'button',
     label: 'reset',
-    action: () => {
+    action: async () => {
       if (nnCtx.isRunning) {
         return;
       }
 
-      nnCtx.ctxPtr = null;
       setOutputData({ responseMatrix: [] });
+      await nnCtx.uninit();
     },
   },
   {
     type: 'button',
     label: 'train 1 million examples',
-    action: () => {
+    action: async () => {
       if (nnCtx.isRunning) {
         return;
       }
 
-      if (!nnCtx.ctxPtr) {
-        nnCtx.init(nnCtx.definition);
+      if (!(await nnCtx.getIsInitialized())) {
+        await nnCtx.init(nnCtx.definition);
       }
+
       nnCtx.isRunning = true;
+      await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
-      nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
-
-      const responseMatrix = computeResponseMatrix(nnCtx, 100, [0, 1]);
+      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
       setOutputData({ responseMatrix });
 
-      let i = 0;
-      const trainOneIteration = () => {
+      for (let i = 0; i < 20; i++) {
         nnCtx.trainWithSourceFunction(sourceFn, 50_000, [0, 1]);
 
-        const responseMatrix = computeResponseMatrix(nnCtx, 100, [0, 1]);
+        const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
         setOutputData({ responseMatrix });
+      }
 
-        i += 1;
-        if (i == 20) {
-          nnCtx.isRunning = false;
-          return;
-        }
-
-        setTimeout(() => trainOneIteration(), 50);
-      };
-
-      trainOneIteration();
+      nnCtx.isRunning = false;
     },
   },
   {
     type: 'button',
     label: 'train 1000 examples',
-    action: () => {
+    action: async () => {
       if (nnCtx.isRunning) {
         return;
       }
 
-      if (!nnCtx.ctxPtr) {
-        nnCtx.init(nnCtx.definition);
+      if (!(await nnCtx.getIsInitialized())) {
+        await nnCtx.init(nnCtx.definition);
       }
 
+      nnCtx.isRunning = true;
       nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
-      const responseMatrix = computeResponseMatrix(nnCtx, 100, [0, 1]);
+      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
       setOutputData({ responseMatrix });
+      nnCtx.isRunning = false;
+    },
+  },
+  {
+    type: 'button',
+    label: 'train 1 example',
+    action: async () => {
+      if (nnCtx.isRunning) {
+        return;
+      }
+
+      if (!(await nnCtx.getIsInitialized())) {
+        await nnCtx.init(nnCtx.definition);
+      }
+
+      nnCtx.isRunning = true;
+      nnCtx.trainWithSourceFunction(sourceFn, 1, [0, 1]);
+
+      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
+      setOutputData({ responseMatrix });
+      nnCtx.isRunning = false;
     },
   },
 ];

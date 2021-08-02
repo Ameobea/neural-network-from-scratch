@@ -1,4 +1,4 @@
-use rand::prelude::*;
+use rand::Rng;
 
 use super::*;
 
@@ -12,6 +12,7 @@ fn test_dense_layer_forward_propagation() {
         neuron_gradients: vec![0.; 2],
         activation_fn: &Sigmoid,
         outputs_before_activation: vec![0., 0.],
+        errors_scratch: vec![0., 0.],
         outputs: vec![0., 0.],
     };
 
@@ -56,6 +57,7 @@ fn test_forward_propagation() {
             biases: vec![1.0, -2.0],
             neuron_gradients: vec![0.; 2],
             activation_fn: &Sigmoid,
+            errors_scratch: vec![0., 0.],
             outputs_before_activation: vec![0., 0.],
             outputs: vec![0., 0.],
         }],
@@ -211,6 +213,7 @@ fn test_hidden_layer_single_weight_updating() {
         weights: vec![vec![1.0]],
         biases: vec![0.0],
         neuron_gradients: vec![0.],
+        errors_scratch: vec![0.],
         activation_fn: &Identity,
         outputs_before_activation: vec![0.],
         outputs: vec![0.],
@@ -255,6 +258,7 @@ fn test_hidden_layer_single_neuron_bias_updating() {
         biases: vec![0.0],
         neuron_gradients: vec![0.],
         activation_fn: &Identity,
+        errors_scratch: vec![0.],
         outputs_before_activation: vec![0.],
         outputs: vec![0.],
     };
@@ -409,7 +413,7 @@ fn test_learns_to_always_output_1() {
         outputs: Box::new(OutputLayer::new(
             &Identity,
             &MeanSquaredError,
-            &mut |_, _| thread_rng().gen_range(-1.0..1.),
+            &mut |_, _| rand::thread_rng().gen_range(-1.0..1.),
             1,
             OUTPUT_COUNT,
         )),
