@@ -1,6 +1,6 @@
 # Neural Network from Scratch in the Browser
 
-![A screenshot of the neural network web application itself which shows ](https://ameo.link/u/97k.png)
+![A screenshot of the neural network web application itself which shows the full UI, network response visualization, and cost plot](https://ameo.link/u/97k.png)
 
 **Try it yourself**: <https://nn-viz.ameo.design>
 

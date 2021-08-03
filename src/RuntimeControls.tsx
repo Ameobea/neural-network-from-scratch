@@ -1,12 +1,16 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useMemo, useState, useReducer } from 'react';
 import ControlPanel from 'react-control-panel';
 import { UnreachableException, useWindowSize } from 'ameo-utils';
 
 import { NNContext } from './NNContext';
-import { ResponseMatrix } from './Charts/ResponseViz';
-import { ResponseViz, CostsPlot } from './Charts';
+import type { ResponseMatrix } from './Charts/ResponseViz';
 import './RuntimeControls.css';
-import { useReducer } from 'react';
+import Loading from './Loading';
+
+const Charts = import('./Charts');
+
+const LazyResponseViz = React.lazy(() => Charts.then(charts => ({ default: charts.ResponseViz })));
+const LazyCostsPlot = React.lazy(() => Charts.then(charts => ({ default: charts.CostsPlot })));
 
 interface OutputData {
   responseMatrix: ResponseMatrix;
@@ -24,8 +28,10 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
 }) => {
   return (
     <div className='charts'>
-      <ResponseViz data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
-      <CostsPlot costs={costs} />
+      <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
+        <LazyResponseViz data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
+        <LazyCostsPlot costs={costs} />
+      </Suspense>
     </div>
   );
 };
@@ -214,7 +220,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
         settings={settings}
         onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
       />
-      {outputData ? <OutputDataDisplay sourceFn={sourceFn} {...outputData} /> : null}
+      {<OutputDataDisplay sourceFn={sourceFn} {...outputData} />}
     </div>
   );
 };

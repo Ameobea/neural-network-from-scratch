@@ -39,7 +39,7 @@ body {
 
 @media screen and (min-width: 850px) {
   .app .content {
-    padding: 20px;
+    padding: 19px;
     flex-direction: row;
   }
 }
@@ -48,4 +48,8 @@ body {
   .app .content {
     flex-direction: column;
   }
+}
+
+.control-panel * {
+  color: #ccc !important;
 }
