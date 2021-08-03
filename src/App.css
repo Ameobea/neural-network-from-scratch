@@ -34,7 +34,18 @@ body {
 }
 
 .app .content {
-  padding: 20px;
   display: flex;
-  flex-direction: row;
+}
+
+@media screen and (min-width: 850px) {
+  .app .content {
+    padding: 20px;
+    flex-direction: row;
+  }
+}
+
+@media screen and (max-width: 849px) {
+  .app .content {
+    flex-direction: column;
+  }
 }

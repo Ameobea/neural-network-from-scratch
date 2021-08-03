@@ -2,6 +2,10 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  margin-left: 20px;
-  /* min-width: max(360px, calc(100vw - 460px)); */
+}
+
+@media screen and (min-width: 850px) {
+  .runtime-controls {
+    margin-left: 20px;
+  }
 }

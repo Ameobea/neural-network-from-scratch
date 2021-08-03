@@ -17,3 +17,6 @@ build:
 
   rm -rf dist/*
   yarn build
+
+deploy:
+  phost update nn-viz patch dist

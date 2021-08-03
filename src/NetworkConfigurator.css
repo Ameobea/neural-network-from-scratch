@@ -1,18 +1,31 @@
 .network-configurator {
-  --response-viz-height: max(400px, 100vh - 335px);
-  --cost-viz-height: 150px;
-  --runtime-config-control-panel-height: 150px;
-  --horizontal-padding: 40px;
-
   display: flex;
   flex-direction: column;
-  max-height: calc(
-    max(
-      100vh - var(--horizontal-padding),
-      var(--response-viz-height) + var(--cost-viz-height) +
-        var(--runtime-config-control-panel-height) - 3px
-    )
-  );
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+@media screen and (min-width: 850px) {
+  .network-configurator {
+    --response-viz-height: max(400px, 100vh - 335px);
+    --cost-viz-height: 150px;
+    --runtime-config-control-panel-height: 150px;
+    --horizontal-padding: 40px;
+
+    max-height: calc(
+      max(
+        100vh - var(--horizontal-padding),
+        var(--response-viz-height) + var(--cost-viz-height) +
+          var(--runtime-config-control-panel-height) - 3px
+      )
+    );
+  }
+}
+
+@media screen and (max-width: 849px) {
+  .network-configurator {
+    flex: 1;
+    max-height: 60vh;
+    border-bottom: 1px solid #121212;
+  }
 }

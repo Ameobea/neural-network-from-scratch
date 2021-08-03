@@ -82,7 +82,8 @@ const buildSourceFn = (fnType: SourceFnType) => {
 const buildSettings = (
   nnCtx: NNContext,
   sourceFn: (inputs: Float32Array) => Float32Array,
-  setOutputData: (action: { responseMatrix: ResponseMatrix; costs: Float32Array | null }) => void
+  setOutputData: (action: { responseMatrix: ResponseMatrix; costs: Float32Array | null }) => void,
+  viewportWidth: number
 ) => [
   {
     type: 'select',
@@ -112,7 +113,7 @@ const buildSettings = (
   },
   {
     type: 'button',
-    label: 'train 1 million examples',
+    label: viewportWidth < 850 ? 'train 1 million' : 'train 1 million examples',
     action: async () => {
       if (nnCtx.isRunning) {
         return;
@@ -200,9 +201,10 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
     sourceFn: buildSourceFn(SourceFnType.ComplexFancy),
   });
   const setOutputData = useCallback((action: OutputDataAction) => dispatchOutputData(action), []);
+  const viewportWidth = useWindowSize().width;
   const settings = useMemo(
-    () => buildSettings(nnCtx, sourceFn, setOutputData),
-    [nnCtx, setOutputData, sourceFn]
+    () => buildSettings(nnCtx, sourceFn, setOutputData, viewportWidth),
+    [nnCtx, setOutputData, sourceFn, viewportWidth]
   );
 
   return (

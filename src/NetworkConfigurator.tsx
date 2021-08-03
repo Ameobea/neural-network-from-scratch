@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import ControlPanel from 'react-control-panel';
 import * as R from 'ramda';
-import { UnreachableException } from 'ameo-utils';
+import { UnreachableException, useWindowSize } from 'ameo-utils';
 
 import {
   ActivationFunctionType,
@@ -31,11 +31,13 @@ const INPUT_LAYER_SETTINGS = [
 
 const InputLayerConfigurator: React.FC<InputLayerConfiguratorProps> = ({ layer, onChange }) => {
   const state = useMemo(() => ({ 'input dimensions': layer.neuronCount }), [layer.neuronCount]);
+  const viewportWidth = useWindowSize().width;
+  const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
     <ControlPanel
       title='input layer'
-      style={{ marginBottom: 20, width: 400 }}
+      style={{ marginBottom: viewportWidth < 850 ? 0 : 20, width }}
       state={state}
       settings={INPUT_LAYER_SETTINGS}
       onChange={(key: string, val: any) => {
@@ -94,11 +96,13 @@ const HiddenLayerConfigurator: React.FC<HiddenLayerConfiguratorProps> = ({
     }),
     [layer.activationFunctionType, layer.neuronCount]
   );
+  const viewportWidth = useWindowSize().width;
+  const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
     <ControlPanel
       title={`hidden layer ${layerIx + 1}`}
-      style={{ width: 400 }}
+      style={{ width }}
       state={state}
       settings={buildHiddenLayerSettings(onDelete)}
       onChange={(key: string, val: any) => {
@@ -131,7 +135,7 @@ interface OutputLayerConfiguratorProps {
 }
 
 const OUTPUT_LAYER_SETTINGS = [
-  { type: 'range', label: 'neuron count', min: 1, max: 5, step: 1 },
+  // { type: 'range', label: 'neuron count', min: 1, max: 5, step: 1 },
   {
     type: 'select',
     label: 'activation function',
@@ -164,10 +168,12 @@ const OutputLayerConfigurator: React.FC<OutputLayerConfiguratorProps> = ({ layer
     () => ({ 'neuron count': layer.neuronCount, 'learning rate': layer.learningRate }),
     [layer.learningRate, layer.neuronCount]
   );
+  const viewportWidth = useWindowSize().width;
+  const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
     <ControlPanel
-      style={{ marginTop: 20, width: 400 }}
+      style={{ marginTop: viewportWidth < 850 ? 0 : 20, width }}
       title='output layer'
       state={state}
       settings={OUTPUT_LAYER_SETTINGS}
@@ -210,7 +216,6 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
   const [definition, setDefinitionInner] = useState<NeuralNetworkDefinition>(
     buildDefaultNetworkDefinition()
   );
-
   const setDefinition = useCallback(
     newDef => {
       setDefinitionInner(newDef);
@@ -218,13 +223,28 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
     },
     [nnCtx]
   );
+  const viewportWidth = useWindowSize().width;
+  const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
     <div className='network-configurator'>
-      <InputLayerConfigurator
+      {/* <InputLayerConfigurator
         layer={definition.inputLayer}
         onChange={newInputLayer => setDefinition({ ...definition, inputLayer: newInputLayer })}
-      />
+      /> */}
+      <div
+        style={{
+          fontFamily: "'Hack', 'Oxygen Mono', 'Input', monospace",
+          fontSize: 10,
+          textAlign: 'center',
+          fontStyle: 'italic',
+          marginTop: viewportWidth < 850 ? 8 : 0,
+          marginBottom: 8,
+          color: '#999',
+        }}
+      >
+        Input layer has 2 dimensions, each with a range of [0, 1].
+      </div>
       {definition.hiddenLayers.map((hiddenLayer, layerIx) => (
         <HiddenLayerConfigurator
           key={layerIx}
@@ -246,7 +266,7 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
         />
       ))}
       <ControlPanel
-        style={{ width: 400 }}
+        style={{ width }}
         settings={[
           {
             type: 'button',

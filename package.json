@@ -35,7 +35,7 @@
     "webpack-dev-server": "^3.11.2"
   },
   "scripts": {
-    "start": "webpack serve --compress",
+    "start": "webpack serve",
     "build": "webpack --config webpack.prod.js",
     "lint": "eslint \"./src/**/*.@(ts|tsx|js|jsx)\""
   },
