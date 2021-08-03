@@ -15,4 +15,5 @@ build:
   just build-engine
   just opt
 
+  rm -rf dist/*
   yarn build

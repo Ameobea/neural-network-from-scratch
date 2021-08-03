@@ -1,6 +1,7 @@
 .runtime-controls {
   display: flex;
+  flex: 1;
   flex-direction: column;
   margin-left: 20px;
-  width: 800px;
+  /* min-width: max(360px, calc(100vw - 460px)); */
 }

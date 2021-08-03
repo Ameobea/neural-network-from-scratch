@@ -7,6 +7,8 @@ interface CostsPlotProps {
   costs: number[];
 }
 
+const style = { height: 150 };
+
 const CostsPlot: React.FC<CostsPlotProps> = ({ costs }) => {
   let averagedCosts = [];
   let indices: number[] = [];
@@ -37,9 +39,12 @@ const CostsPlot: React.FC<CostsPlotProps> = ({ costs }) => {
     indices.push(costs.length);
   }
 
-  const style = { height: 200 };
   const chartConfig = {
     backgroundColor: '#101010',
+    grid: {
+      top: 30,
+      bottom: 30,
+    },
     title: {
       show: true,
       text: 'Cost',
@@ -48,6 +53,7 @@ const CostsPlot: React.FC<CostsPlotProps> = ({ costs }) => {
         fontWeight: 'normal',
         fontSize: 14,
       },
+      left: 'center',
     },
     xAxis: {
       type: 'category',

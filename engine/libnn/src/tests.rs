@@ -401,19 +401,20 @@ fn test_learns_to_always_output_1() {
     const INPUT_COUNT: usize = 1;
     const OUTPUT_COUNT: usize = 1;
     let learning_rate = 0.01;
+    let mut rng = pcg::Pcg::default();
 
     let mut network: Network = Network {
         hidden_layers: vec![DenseLayer::new(
             1,
             INPUT_COUNT,
-            &mut |_, _| rand::thread_rng().gen_range(-1.0..1.0),
+            &mut |_, _| rng.gen_range(-1.0, 1.0),
             &mut |_| 0.,
             &Identity,
         )],
         outputs: Box::new(OutputLayer::new(
             &Identity,
             &MeanSquaredError,
-            &mut |_, _| rand::thread_rng().gen_range(-1.0..1.),
+            &mut |_, _| rng.gen_range(-1.0, 1.),
             1,
             OUTPUT_COUNT,
         )),
@@ -422,9 +423,8 @@ fn test_learns_to_always_output_1() {
 
     // Train it to always output 1.  Network will learn to set a hidden layer weight of 0 and pick a
     // bias and output weight that when multiplied together yield very close to 1.
-    let mut rng = rand::thread_rng();
     for _ in 0..100_000 {
-        let example = rng.gen_range(-1.0..1.0);
+        let example = rng.gen_range(-1.0, 1.0);
         network.train_one_example(&[example], &[1.], learning_rate);
 
         if network.hidden_layers[0].weights[0][0].is_nan() {
@@ -456,13 +456,14 @@ fn test_learns_to_always_output_1() {
 
 #[test]
 fn test_multiplies_inputs() {
-    let mut init_weights = |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(-0.2..0.2) };
+    let mut rng = pcg::Pcg::default();
+    let mut init_weights = |_output_ix: usize, _input_ix: usize| -> Weight { rng.gen_range(-0.2, 0.2) };
 
     let mut init_biases = |_neuron_ix| -> Weight { 0. };
 
     const INPUT_COUNT: usize = 2;
     const OUTPUT_COUNT: usize = 1;
-    let learning_rate = 0.5;
+    let learning_rate = 0.6;
     let hidden_layer_neuron_count = 8;
 
     let mut network: Network = Network {
@@ -493,8 +494,8 @@ fn test_multiplies_inputs() {
     };
 
     for _ in 0..100_000 {
-        let example_1 = rand::thread_rng().gen_range(0.0..1.);
-        let example_2 = rand::thread_rng().gen_range(0.0..1.);
+        let example_1 = rng.gen_range(0.0, 1.);
+        let example_2 = rng.gen_range(0.0, 1.);
         let expected_output = &[example_1 * example_2];
 
         network.train_one_example(&[example_1, example_2], expected_output, learning_rate);

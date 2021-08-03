@@ -1,10 +1,11 @@
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { VisualMapComponent } from 'echarts/components';
+import { VisualMapComponent, TitleComponent } from 'echarts/components';
+console.log(TitleComponent);
 
 import ResponseViz from './ResponseViz';
 import CostsPlot from './CostsPlot';
 
-echarts.use([CanvasRenderer, VisualMapComponent]);
+echarts.use([CanvasRenderer, VisualMapComponent, TitleComponent]);
 
 export { ResponseViz, CostsPlot };

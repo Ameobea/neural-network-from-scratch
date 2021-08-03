@@ -3,19 +3,19 @@ import React from 'react';
 import * as echarts from 'echarts/core';
 import 'echarts-gl';
 
-import type { NNContext } from '../NNContext';
-
 export type ResponseMatrix = [number, number, number][];
 
 interface ResponseVizProps {
-  nnCtx: NNContext;
   data: ResponseMatrix;
   inputRange: [number, number];
   sourceFn: (inputs: Float32Array) => Float32Array;
 }
 
-const ResponseViz: React.FC<ResponseVizProps> = ({ nnCtx, data, inputRange, sourceFn }) => {
-  const style = { height: 600 };
+const style = {
+  height: 'max(400px, calc(100vh - 335px))',
+};
+
+const ResponseViz: React.FC<ResponseVizProps> = ({ data, inputRange, sourceFn }) => {
   const chartConfig = {
     backgroundColor: '#101010',
     visualMap: {

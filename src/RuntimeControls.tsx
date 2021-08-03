@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import ControlPanel from 'react-control-panel';
-import { UnreachableException } from 'ameo-utils';
+import { UnreachableException, useWindowSize } from 'ameo-utils';
 
 import { NNContext } from './NNContext';
 import { ResponseMatrix } from './Charts/ResponseViz';
@@ -14,19 +14,17 @@ interface OutputData {
 }
 
 interface OutputDataDisplayProps extends OutputData {
-  nnCtx: NNContext;
   sourceFn: (inputs: Float32Array) => Float32Array;
 }
 
 const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
-  nnCtx,
   responseMatrix,
   sourceFn,
   costs,
 }) => {
   return (
     <div className='charts'>
-      <ResponseViz nnCtx={nnCtx} data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
+      <ResponseViz data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
       <CostsPlot costs={costs} />
     </div>
   );
@@ -42,7 +40,8 @@ enum SourceFnType {
   Max,
   Min,
   ComplexFancy,
-  Discretize,
+  Random,
+  Ridges,
 }
 
 const buildSourceFn = (fnType: SourceFnType) => {
@@ -66,6 +65,15 @@ const buildSourceFn = (fnType: SourceFnType) => {
             : Math.abs(Math.sin(inputs[0] * 6)) * Math.abs(Math.sin(inputs[1] * 6));
         return new Float32Array([val]);
       };
+    case SourceFnType.Ridges:
+      return (inputs: Float32Array) => {
+        const x = inputs[0] * 5;
+        const y = inputs[1] * 5;
+        const flag = Math.floor(x) % 2 === 1 || Math.floor(y) % 2 === 1;
+        return new Float32Array([flag ? 1 : 0]);
+      };
+    case SourceFnType.Random:
+      return (_inputs: Float32Array) => new Float32Array([Math.random()]);
     default:
       throw new UnreachableException();
   }
@@ -85,6 +93,8 @@ const buildSettings = (
       'max(a, b)': SourceFnType.Max,
       'min(a, b)': SourceFnType.Min,
       'fancy sine thing': SourceFnType.ComplexFancy,
+      ridges: SourceFnType.Ridges,
+      'math.random': SourceFnType.Random,
     },
     initial: SourceFnType.ComplexFancy,
   },
@@ -198,13 +208,11 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
   return (
     <div className='runtime-controls'>
       <ControlPanel
-        style={{ width: 800 }}
+        style={{ width: '100%' }}
         settings={settings}
-        onChange={(_key: string, val: any) => {
-          setSourceFn({ sourceFn: buildSourceFn(+val) });
-        }}
+        onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
       />
-      {outputData ? <OutputDataDisplay nnCtx={nnCtx} sourceFn={sourceFn} {...outputData} /> : null}
+      {outputData ? <OutputDataDisplay sourceFn={sourceFn} {...outputData} /> : null}
     </div>
   );
 };
