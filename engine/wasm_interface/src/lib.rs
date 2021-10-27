@@ -235,6 +235,35 @@ pub fn train(ctx: *mut NNCtx, example: &[Weight], expected: &[Weight], learning_
 }
 
 #[wasm_bindgen]
+pub fn train_many_examples(
+    ctx: *mut NNCtx,
+    examples: &[Weight],
+    expected: &[Weight],
+    learning_rate: Weight,
+) -> Vec<Weight> {
+    let network: &mut Network = unsafe { &mut (*ctx).network };
+
+    let input_dims = network.hidden_layers[0].weights[0].len();
+    let output_dims = network.outputs.outputs.len();
+    let iterations = examples.len() / input_dims;
+    let mut costs = Vec::with_capacity(iterations);
+
+    assert_eq!(examples.len(), input_dims * iterations);
+    assert_eq!(expected.len(), output_dims * iterations);
+
+    for iteration in 0..iterations {
+        let cost = network.train_one_example(
+            &examples[iteration * input_dims..(iteration + 1) * input_dims],
+            &expected[iteration * output_dims..(iteration + 1) * output_dims],
+            learning_rate,
+        );
+        costs.push(cost);
+    }
+
+    costs
+}
+
+#[wasm_bindgen]
 pub fn predict(ctx: *mut NNCtx, example: &[Weight]) -> Vec<Weight> {
     let network: &mut Network = unsafe { &mut (*ctx).network };
     network.compute(example).to_owned()

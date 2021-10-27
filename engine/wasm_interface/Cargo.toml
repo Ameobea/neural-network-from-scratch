@@ -7,7 +7,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = { version = "=0.2.74", features = ["nightly"] }
+wasm-bindgen = { version = "=0.2.78", features = ["nightly"] }
 libnn = { path = "../libnn" }
 rand = { version = "0.7", default_features = false, features = ["alloc"] }
 console_error_panic_hook = "0.1"

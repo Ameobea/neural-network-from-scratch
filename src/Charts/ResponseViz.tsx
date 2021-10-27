@@ -95,7 +95,7 @@ const ResponseViz: React.FC<ResponseVizProps> = ({ data, inputRange, sourceFn })
     ],
   };
 
-  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} />;
+  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} lazyUpdate />;
 };
 
 export default ResponseViz;

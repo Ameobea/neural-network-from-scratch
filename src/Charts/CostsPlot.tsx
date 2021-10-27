@@ -73,7 +73,7 @@ const CostsPlot: React.FC<CostsPlotProps> = ({ costs }) => {
     ],
   };
 
-  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} />;
+  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} lazyUpdate />;
 };
 
 export default CostsPlot;

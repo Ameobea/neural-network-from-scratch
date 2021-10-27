@@ -133,19 +133,21 @@ export class NNWorkerCtx {
       throw new UnreachableException('Not initialized');
     }
 
-    const inputDims = this.definition.inputLayer.neuronCount;
-    const outputDims = this.definition.outputLayer.neuronCount;
-    const iterations = examples.length / inputDims;
-    const costs = new Float32Array(iterations);
+    return this.engine.train_many_examples(this.ctxPtr, examples, expecteds, learningRate);
 
-    for (let i = 0; i < iterations; i++) {
-      const example = examples.subarray(i * inputDims, i * inputDims + inputDims);
-      const expected = expecteds.subarray(i * outputDims, i * outputDims + outputDims);
-      const cost = this.engine.train(this.ctxPtr!, example, expected, learningRate);
-      costs[i] = cost;
-    }
+    // const inputDims = this.definition.inputLayer.neuronCount;
+    // const outputDims = this.definition.outputLayer.neuronCount;
+    // const iterations = examples.length / inputDims;
+    // const costs = new Float32Array(iterations);
 
-    return costs;
+    // for (let i = 0; i < iterations; i++) {
+    //   const example = examples.subarray(i * inputDims, i * inputDims + inputDims);
+    //   const expected = expecteds.subarray(i * outputDims, i * outputDims + outputDims);
+    //   const cost = this.engine.train(this.ctxPtr!, example, expected, learningRate);
+    //   costs[i] = cost;
+    // }
+
+    // return costs;
   }
 }
 

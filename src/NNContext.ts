@@ -32,9 +32,10 @@ export class NNContext {
     const inputCount = this.definition.inputLayer.neuronCount;
 
     for (let i = 0; i < iterations; i++) {
-      const inputs = new Float32Array(inputCount)
-        .fill(0)
-        .map(() => randomFloatInRange(inputRange[0], inputRange[1]));
+      for (let inputIx = 0; inputIx < inputCount; inputIx++) {
+        examples[inputDims * i + inputIx] = randomFloatInRange(inputRange[0], inputRange[1]);
+      }
+      const inputs = examples.subarray(inputDims * i, inputDims * (i + 1));
       const expected = sourceFn(inputs);
       examples.set(inputs, inputDims * i);
       expecteds.set(expected, outputDims * i);
