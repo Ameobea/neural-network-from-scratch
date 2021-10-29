@@ -69,8 +69,13 @@ const buildHiddenLayerSettings = (onDelete: () => void) => [
     options: {
       sigmoid: ActivationFunctionType.Sigmoid,
       relu: ActivationFunctionType.ReLU,
+      'leaky relu': ActivationFunctionType.LeakyReLU,
       tanh: ActivationFunctionType.Tanh,
       identity: ActivationFunctionType.Identity,
+      gcu: ActivationFunctionType.GCU,
+      gaussian: ActivationFunctionType.Gaussian,
+      swish: ActivationFunctionType.Swish,
+      ameo: ActivationFunctionType.Ameo,
     },
   },
   { type: 'button', label: 'delete', action: onDelete },
@@ -142,8 +147,13 @@ const OUTPUT_LAYER_SETTINGS = [
     options: {
       sigmoid: ActivationFunctionType.Sigmoid,
       relu: ActivationFunctionType.ReLU,
+      'leaky relu': ActivationFunctionType.LeakyReLU,
       tanh: ActivationFunctionType.Tanh,
       identity: ActivationFunctionType.Identity,
+      gcu: ActivationFunctionType.GCU,
+      gaussian: ActivationFunctionType.Gaussian,
+      swish: ActivationFunctionType.Swish,
+      ameo: ActivationFunctionType.Ameo,
     },
   },
   {

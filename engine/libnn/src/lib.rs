@@ -136,6 +136,87 @@ impl ActivationFunction for ReLU {
     }
 }
 
+pub struct LeakyReLU;
+pub static LEAKY_RELU: LeakyReLU = LeakyReLU;
+
+impl ActivationFunction for LeakyReLU {
+    fn get_output(&self, x: Weight) -> Weight {
+        if x < 0. {
+            0.01 * x
+        } else {
+            x
+        }
+    }
+
+    fn derivative(&self, x: Weight) -> Weight {
+        if x < 0. {
+            0.01
+        } else {
+            1.
+        }
+    }
+
+    // TODO: Batch Application
+}
+
+pub struct GrowingCosineUnit;
+pub static GCU: GrowingCosineUnit = GrowingCosineUnit;
+
+impl ActivationFunction for GrowingCosineUnit {
+    // TODO: Fastmath
+    fn get_output(&self, x: Weight) -> Weight { x * x.cos() }
+
+    fn derivative(&self, x: Weight) -> Weight { x.cos() - (x * x.sin()) }
+
+    // TODO: Batch Application
+}
+
+pub struct Gaussian;
+pub static GAUSSIAN: Gaussian = Gaussian;
+
+impl ActivationFunction for Gaussian {
+    // TODO: Fastmath
+    fn get_output(&self, x: Weight) -> Weight { std::f32::consts::E.powf(-x * x) }
+
+    fn derivative(&self, x: Weight) -> Weight { -2. * x * std::f32::consts::E.powf(-x * x) }
+
+    // TODO: Batch Application
+}
+
+pub struct Swish;
+pub static SWISH: Swish = Swish;
+
+impl ActivationFunction for Swish {
+    // TODO: Fastmath
+    fn get_output(&self, x: Weight) -> Weight { x / (1. + std::f32::consts::E.powf(-x)) }
+
+    fn derivative(&self, x: Weight) -> Weight {
+        (1. + std::f32::consts::E.powf(-x) + (x * std::f32::consts::E.powf(-x)))
+            / (1. + std::f32::consts::E.powf(-x)).powi(2)
+    }
+}
+
+pub struct Ameo;
+pub static AMEO: Ameo = Ameo;
+
+impl ActivationFunction for Ameo {
+    fn get_output(&self, x: Weight) -> Weight {
+        if x >= 0. {
+            GCU.get_output(x)
+        } else {
+            TANH.get_output(x)
+        }
+    }
+
+    fn derivative(&self, x: Weight) -> Weight {
+        if x >= 0. {
+            GCU.derivative(x)
+        } else {
+            TANH.derivative(x)
+        }
+    }
+}
+
 pub trait CostFunction {
     fn get_cost(&self, error: Weight) -> Weight;
 
@@ -208,7 +289,12 @@ impl DenseLayer {
 
     /// Calculates the gradients for each neuron and populates `self.neuron_gradients`.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn compute_gradients(&mut self, output_weights: &[Vec<Weight>], gradient_of_output_neurons: &[Weight]) {
+    pub fn compute_gradients(
+        &mut self,
+        output_weights: &[Vec<Weight>],
+        gradient_of_output_neurons: &[Weight],
+        accumulate: bool,
+    ) {
         debug_assert_eq!(output_weights.len(), gradient_of_output_neurons.len());
 
         for neuron_ix in 0..self.weights.len() {
@@ -223,7 +309,12 @@ impl DenseLayer {
                 error += output_weight * gradient_of_output_neurons[output_ix];
             }
 
-            self.neuron_gradients[neuron_ix] = self.compute_neuron_gradient(output_before_activation, error);
+            let gradient = self.compute_neuron_gradient(output_before_activation, error);
+            if accumulate {
+                self.neuron_gradients[neuron_ix] += gradient;
+            } else {
+                self.neuron_gradients[neuron_ix] = gradient;
+            }
         }
     }
 
@@ -500,11 +591,17 @@ impl OutputLayer {
 
     /// Once `compute_costs()` has been called, calculates the gradients for each neuron and
     /// populates `self.neuron_gradients.
-    pub fn compute_gradients(&mut self) {
+    pub fn compute_gradients(&mut self, accumulate: bool) {
         // Assumes that costs have already been computed.
         for (neuron_ix, &neuron_error) in self.errors.iter().enumerate() {
             let output_before_activation = self.outputs_before_activation[neuron_ix];
-            self.neuron_gradients[neuron_ix] = self.compute_neuron_gradient(output_before_activation, neuron_error);
+            let gradient = self.compute_neuron_gradient(output_before_activation, neuron_error);
+
+            if accumulate {
+                self.neuron_gradients[neuron_ix] += gradient
+            } else {
+                self.neuron_gradients[neuron_ix] = gradient
+            }
         }
     }
 
@@ -556,13 +653,13 @@ impl Network {
 
         // Compute gradients + costs for the output layer based off the generated outputs
         self.outputs.compute_costs(expected);
-        self.outputs.compute_gradients();
+        self.outputs.compute_gradients(false);
 
         // Then compute gradients for the hidden layers
         let mut output_weights = self.outputs.weights.as_slice();
         let mut gradient_of_output_neurons = self.outputs.neuron_gradients.as_slice();
         for hidden_layer in self.hidden_layers.iter_mut().rev() {
-            hidden_layer.compute_gradients(output_weights, gradient_of_output_neurons);
+            hidden_layer.compute_gradients(output_weights, gradient_of_output_neurons, false);
             output_weights = hidden_layer.weights.as_slice();
             gradient_of_output_neurons = &hidden_layer.neuron_gradients.as_slice();
         }
@@ -589,6 +686,75 @@ impl Network {
         let total_cost = self.outputs.costs.iter().fold(0., |acc, cost| acc + *cost);
         total_cost / self.outputs.costs.len() as Weight
     }
+
+    // pub fn train_batch(
+    //     &mut self,
+    //     batch_size: usize,
+    //     examples: &[Weight],
+    //     expecteds: &[Weight],
+    //     mut learning_rate: Weight,
+    // ) -> Weight {
+    //     assert_eq!(examples.len() % batch_size, 0);
+    //     assert_eq!(expecteds.len() % batch_size, 0);
+    //     let batch_count = examples.len() / batch_size;
+
+    //     // Clear gradients from all hidden layers + the output layer since we're accumulating them for all examples
+    // in     // the batch
+    //     self.outputs.neuron_gradients.fill(0.);
+    //     for hidden_layer in &mut self.hidden_layers {
+    //         hidden_layer.neuron_gradients.fill(0.);
+    //     }
+
+    //     for batch_ix in 0..batch_count {
+    //         let example = &examples[(batch_ix * batch_size)..((batch_ix + 1) * batch_size)];
+    //         let expected = &expecteds[(batch_ix * batch_size)..((batch_ix + 1) * batch_size)];
+
+    //         // Run the example all the way through the network, populating outputs in the output layer.
+    //         self.forward_propagate(example);
+
+    //         // Compute and accumulate gradients + costs for the output layer based off the generated outputs
+    //         self.outputs.compute_costs(expected);
+    //         self.outputs.compute_gradients(true);
+
+    //         // Then compute and accumulate gradients for the hidden layers
+    //         let mut output_weights = self.outputs.weights.as_slice();
+    //         let mut gradient_of_output_neurons = self.outputs.neuron_gradients.as_slice();
+    //         for hidden_layer in self.hidden_layers.iter_mut().rev() {
+    //             hidden_layer.compute_gradients(output_weights, gradient_of_output_neurons, true);
+    //             output_weights = hidden_layer.weights.as_slice();
+    //             gradient_of_output_neurons = &hidden_layer.neuron_gradients.as_slice();
+    //         }
+    //     }
+
+    //     // Normalize gradients by dividing by batch size.  Gradients are multipled by learning rate anyway, so just
+    //     // mutate learning rate to make things more efficient
+    //     learning_rate *= 1. / batch_size as Weight;
+
+    //     // TODO: Need to pre-multiply gradients by inputs and probably store a matrix of gradients rather than a
+    // vector     // since every neuron is connected to every input
+
+    //     // Using the gradients computed before, update weights on the output layer
+    //     let inputs = self.hidden_layers.last().unwrap().outputs.as_slice();
+    //     self.outputs.update_weights(inputs, self.learning_rate);
+
+    //     // then update weights + biases for all hidden layers
+    //     for hidden_layer_ix in (0..self.hidden_layers.len()).rev() {
+    //         let inputs = if hidden_layer_ix == 0 {
+    //             example
+    //         } else {
+    //             // I don't care about lifetimes here, we only mutate the output
+    //             let slice = self.hidden_layers[hidden_layer_ix - 1].outputs.as_slice();
+    //             unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
+    //         };
+    //         let hidden_layer = &mut self.hidden_layers[hidden_layer_ix];
+    //         hidden_layer.update_weights(inputs, self.learning_rate);
+    //         hidden_layer.update_biases(learning_rate);
+    //     }
+
+    //     // That's it, we've successfully "learned"
+    //     let total_cost = self.outputs.costs.iter().fold(0., |acc, cost| acc + *cost);
+    //     total_cost / self.outputs.costs.len() as Weight
+    // }
 
     pub fn compute<'a>(&'a mut self, inputs: &[Weight]) -> &'a [Weight] {
         self.forward_propagate(inputs);

@@ -6,20 +6,9 @@
     thread_local
 )]
 
-use libnn::{
-    ActivationFunction, CostFunction, DenseLayer, Network, OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR, RELU,
-    SIGMOID, TANH,
-};
+use libnn::{AMEO, ActivationFunction, CostFunction, DenseLayer, GAUSSIAN, GCU, IDENTITY, LEAKY_RELU, MEAN_SQUARED_ERROR, Network, OutputLayer, RELU, SIGMOID, SWISH, TANH, Weight};
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = Math)]
-    fn random() -> f32;
-}
-
-fn js_random() -> f32 { random() }
 
 pub struct NNCtx {
     pub network: Network,
@@ -32,6 +21,11 @@ pub enum ActivationFunctionType {
     Sigmoid = 1,
     Tanh = 2,
     ReLU = 3,
+    LeakyReLU = 4,
+    GCU = 5,
+    Gaussian = 6,
+    Swish = 7,
+    Ameo = 8,
 }
 
 #[derive(Clone, Copy)]
@@ -55,6 +49,11 @@ impl Into<&'static dyn ActivationFunction> for ActivationFunctionType {
             ActivationFunctionType::Sigmoid => &SIGMOID,
             ActivationFunctionType::Tanh => &TANH,
             ActivationFunctionType::ReLU => &RELU,
+            ActivationFunctionType::LeakyReLU => &LEAKY_RELU,
+            ActivationFunctionType::GCU => &GCU,
+            ActivationFunctionType::Gaussian => &GAUSSIAN,
+            ActivationFunctionType::Swish => &SWISH,
+            ActivationFunctionType::Ameo => &AMEO,
         }
     }
 }
@@ -169,9 +168,7 @@ fn maybe_init() {
     unsafe { DID_INIT = true };
 
     console_error_panic_hook::set_once();
-    let (seed1, seed2) = (js_random(), js_random());
-    let seed: u64 = unsafe { std::mem::transmute((seed1, seed2)) };
-    unsafe { RNG = pcg::Pcg::seed_from_u64(seed) };
+    unsafe { RNG = pcg::Pcg::seed_from_u64(10203040382934) };
 }
 
 #[wasm_bindgen]

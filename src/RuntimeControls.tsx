@@ -48,6 +48,7 @@ enum SourceFnType {
   ComplexFancy,
   Random,
   Ridges,
+  Xor,
 }
 
 const buildSourceFn = (fnType: SourceFnType) => {
@@ -80,6 +81,12 @@ const buildSourceFn = (fnType: SourceFnType) => {
       };
     case SourceFnType.Random:
       return (_inputs: Float32Array) => new Float32Array([Math.random()]);
+    case SourceFnType.Xor:
+      return (inputs: Float32Array) => {
+        const a = inputs[0] < 0.5;
+        const b = inputs[1] > 0.5;
+        return new Float32Array([a !== b ? 1 : 0]);
+      };
     default:
       throw new UnreachableException();
   }
@@ -100,6 +107,7 @@ const buildSettings = (
       'max(a, b)': SourceFnType.Max,
       'min(a, b)': SourceFnType.Min,
       'fancy sine thing': SourceFnType.ComplexFancy,
+      xor: SourceFnType.Xor,
       ridges: SourceFnType.Ridges,
       'math.random': SourceFnType.Random,
     },

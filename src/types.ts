@@ -37,6 +37,11 @@ export enum ActivationFunctionType {
   Sigmoid = 1,
   Tanh = 2,
   ReLU = 3,
+  LeakyReLU = 4,
+  GCU = 5,
+  Gaussian = 6,
+  Swish = 7,
+  Ameo = 8,
 }
 
 export enum CostFunctionType {
