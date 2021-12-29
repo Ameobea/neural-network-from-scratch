@@ -15,6 +15,7 @@ import {
 } from './types';
 import './NetworkConfigurator.css';
 import type { NNContext } from './NNContext';
+import { getSentry } from './sentry';
 
 interface NetworkConfiguratorProps {
   nnCtx: NNContext;
@@ -78,7 +79,14 @@ const buildHiddenLayerSettings = (onDelete: () => void) => [
       ameo: ActivationFunctionType.Ameo,
     },
   },
-  { type: 'button', label: 'delete', action: onDelete },
+  {
+    type: 'button',
+    label: 'delete',
+    action: () => {
+      getSentry()?.captureMessage('Delete hidden layer button clicked');
+      onDelete();
+    },
+  },
 ];
 
 interface HiddenLayerConfiguratorProps {
@@ -281,11 +289,13 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
           {
             type: 'button',
             label: 'add hidden layer',
-            action: () =>
+            action: () => {
+              getSentry()?.captureMessage('Add hidden layer button clicked');
               setDefinition({
                 ...definition,
                 hiddenLayers: [...definition.hiddenLayers, buildDefaultHiddenLayerDefinition()],
-              }),
+              });
+            },
           },
         ]}
       />

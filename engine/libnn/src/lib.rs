@@ -289,12 +289,7 @@ impl DenseLayer {
 
     /// Calculates the gradients for each neuron and populates `self.neuron_gradients`.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn compute_gradients(
-        &mut self,
-        output_weights: &[Vec<Weight>],
-        gradient_of_output_neurons: &[Weight],
-        accumulate: bool,
-    ) {
+    pub fn compute_gradients(&mut self, output_weights: &[Vec<Weight>], gradient_of_output_neurons: &[Weight]) {
         debug_assert_eq!(output_weights.len(), gradient_of_output_neurons.len());
 
         for neuron_ix in 0..self.weights.len() {
@@ -310,11 +305,7 @@ impl DenseLayer {
             }
 
             let gradient = self.compute_neuron_gradient(output_before_activation, error);
-            if accumulate {
-                self.neuron_gradients[neuron_ix] += gradient;
-            } else {
-                self.neuron_gradients[neuron_ix] = gradient;
-            }
+            self.neuron_gradients[neuron_ix] = gradient;
         }
     }
 
@@ -591,17 +582,13 @@ impl OutputLayer {
 
     /// Once `compute_costs()` has been called, calculates the gradients for each neuron and
     /// populates `self.neuron_gradients.
-    pub fn compute_gradients(&mut self, accumulate: bool) {
+    pub fn compute_gradients(&mut self) {
         // Assumes that costs have already been computed.
         for (neuron_ix, &neuron_error) in self.errors.iter().enumerate() {
             let output_before_activation = self.outputs_before_activation[neuron_ix];
             let gradient = self.compute_neuron_gradient(output_before_activation, neuron_error);
 
-            if accumulate {
-                self.neuron_gradients[neuron_ix] += gradient
-            } else {
-                self.neuron_gradients[neuron_ix] = gradient
-            }
+            self.neuron_gradients[neuron_ix] = gradient
         }
     }
 
@@ -653,13 +640,13 @@ impl Network {
 
         // Compute gradients + costs for the output layer based off the generated outputs
         self.outputs.compute_costs(expected);
-        self.outputs.compute_gradients(false);
+        self.outputs.compute_gradients();
 
         // Then compute gradients for the hidden layers
         let mut output_weights = self.outputs.weights.as_slice();
         let mut gradient_of_output_neurons = self.outputs.neuron_gradients.as_slice();
         for hidden_layer in self.hidden_layers.iter_mut().rev() {
-            hidden_layer.compute_gradients(output_weights, gradient_of_output_neurons, false);
+            hidden_layer.compute_gradients(output_weights, gradient_of_output_neurons);
             output_weights = hidden_layer.weights.as_slice();
             gradient_of_output_neurons = &hidden_layer.neuron_gradients.as_slice();
         }

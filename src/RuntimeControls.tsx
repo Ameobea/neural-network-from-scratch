@@ -6,6 +6,7 @@ import { NNContext } from './NNContext';
 import type { ResponseMatrix } from './Charts/ResponseViz';
 import './RuntimeControls.css';
 import Loading from './Loading';
+import { getSentry } from './sentry';
 
 const Charts = import('./Charts');
 
@@ -121,6 +122,7 @@ const buildSettings = (
         return;
       }
 
+      getSentry()?.captureMessage('Reset button clicked');
       setOutputData({ responseMatrix: [], costs: null });
       await nnCtx.uninit();
     },
@@ -137,6 +139,7 @@ const buildSettings = (
         await nnCtx.init(nnCtx.definition);
       }
 
+      getSentry()?.captureMessage('Train 1mm examples button clicked');
       nnCtx.isRunning = true;
       let costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
@@ -166,6 +169,7 @@ const buildSettings = (
         setOutputData({ responseMatrix: [], costs: null });
       }
 
+      getSentry()?.captureMessage('Train 1k button clicked');
       nnCtx.isRunning = true;
       const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
@@ -186,6 +190,7 @@ const buildSettings = (
         await nnCtx.init(nnCtx.definition);
       }
 
+      getSentry()?.captureMessage('Train 1 example button clicked');
       nnCtx.isRunning = true;
       const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1, [0, 1]);
 
