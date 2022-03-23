@@ -3,6 +3,7 @@
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  min-width: 400px;
 }
 
 @media screen and (min-width: 850px) {
