@@ -47,15 +47,8 @@ const config = {
   ],
   devServer: {
     port: 7000,
-    contentBase: './public/',
     historyApiFallback: true,
-    disableHostCheck: true,
     host: '0.0.0.0',
-    headers: {
-      // Support sending `SharedArrayBuffer` between threads
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-    },
   },
   experiments: {
     syncWebAssembly: true,

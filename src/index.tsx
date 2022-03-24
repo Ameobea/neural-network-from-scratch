@@ -1,5 +1,5 @@
 import React from 'react';
-import * as ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 
 import App from './App';
 import NoWasmSIMDMessage from './NoWasmSIMDMessage';
@@ -12,7 +12,7 @@ const hasSIMDSupport = getHasSIMDSupport();
 
 const toRender = hasSIMDSupport ? <App /> : <NoWasmSIMDMessage />;
 
-ReactDOM.createRoot(document.getElementById('root')!).render(toRender);
+createRoot(document.getElementById('root')!).render(toRender);
 
 getSentry()?.captureMessage(
   hasSIMDSupport
