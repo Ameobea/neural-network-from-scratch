@@ -4,14 +4,14 @@ export const buildDefaultNetworkDefinition = (): NeuralNetworkDefinition => ({
     {
       neuronCount: 64,
       activationFunctionType: ActivationFunctionType.ReLU,
-      initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-      initBiasesFnDefinition: { type: 'constant', val: 0 },
+      initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+      initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
     },
     {
       neuronCount: 32,
       activationFunctionType: ActivationFunctionType.ReLU,
-      initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-      initBiasesFnDefinition: { type: 'constant', val: 0 },
+      initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+      initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
     },
   ],
   outputLayer: {
@@ -52,6 +52,34 @@ export type InitWeightsFnDefinition =
   | { type: 'constant'; val: number }
   | { type: 'continuousUniformDistribution'; min: number; max: number };
 
+export enum ValueInitializerType {
+  AllZero = 0,
+  AllOne = 1,
+  RandomNegOneTenthPositiveOneTenth = 2,
+  RandomNegOnePositiveOne = 3,
+  RandomZeroToPositiveOneTenth = 4,
+  RandomZeroToPositiveOne = 5,
+}
+
+export const buildValueInitializerFunctionDefinition = (
+  initializerType: ValueInitializerType
+): InitWeightsFnDefinition => {
+  switch (initializerType) {
+    case ValueInitializerType.AllZero:
+      return { type: 'constant', val: 0 };
+    case ValueInitializerType.AllOne:
+      return { type: 'constant', val: 1 };
+    case ValueInitializerType.RandomNegOneTenthPositiveOneTenth:
+      return { type: 'continuousUniformDistribution', min: -0.1, max: 0.1 };
+    case ValueInitializerType.RandomNegOnePositiveOne:
+      return { type: 'continuousUniformDistribution', min: -1, max: 1 };
+    case ValueInitializerType.RandomZeroToPositiveOneTenth:
+      return { type: 'continuousUniformDistribution', min: 0, max: 0.1 };
+    case ValueInitializerType.RandomZeroToPositiveOne:
+      return { type: 'continuousUniformDistribution', min: 0, max: 1 };
+  }
+};
+
 export interface InputLayerDefinition {
   neuronCount: number;
 }
@@ -59,8 +87,8 @@ export interface InputLayerDefinition {
 export interface HiddenLayerDefinition {
   neuronCount: number;
   activationFunctionType: ActivationFunctionType;
-  initWeightsFnDefinition: InitWeightsFnDefinition;
-  initBiasesFnDefinition: InitWeightsFnDefinition;
+  initWeightsFnDefinition: ValueInitializerType;
+  initBiasesFnDefinition: ValueInitializerType;
 }
 
 export interface OutputLayerDefinition {
@@ -80,6 +108,6 @@ export interface NeuralNetworkDefinition {
 export const buildDefaultHiddenLayerDefinition = (): HiddenLayerDefinition => ({
   neuronCount: 8,
   activationFunctionType: ActivationFunctionType.Sigmoid,
-  initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-  initBiasesFnDefinition: { type: 'constant', val: 0 },
+  initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+  initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
 });

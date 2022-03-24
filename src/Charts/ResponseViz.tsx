@@ -9,13 +9,19 @@ interface ResponseVizProps {
   data: ResponseMatrix;
   inputRange: [number, number];
   sourceFn: (inputs: Float32Array) => Float32Array;
+  isConstrainedLayout: boolean;
 }
 
 const style = {
-  height: 'max(400px, calc(100vh - 335px))',
+  height: 'max(300px, calc(100vh - 335px))',
 };
 
-const ResponseViz: React.FC<ResponseVizProps> = ({ data, inputRange, sourceFn }) => {
+const ResponseViz: React.FC<ResponseVizProps> = ({
+  data,
+  inputRange,
+  sourceFn,
+  isConstrainedLayout,
+}) => {
   const chartConfig = {
     backgroundColor: '#101010',
     visualMap: {
@@ -59,6 +65,8 @@ const ResponseViz: React.FC<ResponseVizProps> = ({ data, inputRange, sourceFn })
       axisPointer: {
         show: false,
       },
+      top: isConstrainedLayout ? -50 : undefined,
+      bottom: isConstrainedLayout ? -50 : undefined,
     },
     series: [
       {

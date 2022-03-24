@@ -7,6 +7,7 @@ import type { ResponseMatrix } from './Charts/ResponseViz';
 import './RuntimeControls.css';
 import Loading from './Loading';
 import { getSentry } from './sentry';
+import ExpandCollapseButton from './Components/ExpandCollapseButton';
 
 const Charts = import('./Charts');
 
@@ -20,17 +21,24 @@ interface OutputData {
 
 interface OutputDataDisplayProps extends OutputData {
   sourceFn: (inputs: Float32Array) => Float32Array;
+  isConstrainedLayout: boolean;
 }
 
 const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   responseMatrix,
   sourceFn,
   costs,
+  isConstrainedLayout,
 }) => {
   return (
     <div className='charts'>
       <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
-        <LazyResponseViz data={responseMatrix} sourceFn={sourceFn} inputRange={[0, 1]} />
+        <LazyResponseViz
+          data={responseMatrix}
+          sourceFn={sourceFn}
+          inputRange={[0, 1]}
+          isConstrainedLayout={isConstrainedLayout}
+        />
         <LazyCostsPlot costs={costs} />
       </Suspense>
     </div>
@@ -39,6 +47,9 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
 
 interface RuntimeControlsProps {
   nnCtx: NNContext;
+  isConstrainedLayout: boolean;
+  isExpanded: boolean;
+  setExpanded: (isExpanded: boolean) => void;
 }
 
 enum SourceFnType {
@@ -47,6 +58,7 @@ enum SourceFnType {
   Max,
   Min,
   ComplexFancy,
+  ComplexFancy2,
   Random,
   Ridges,
   Xor,
@@ -73,6 +85,20 @@ const buildSourceFn = (fnType: SourceFnType) => {
             : Math.abs(Math.sin(inputs[0] * 6)) * Math.abs(Math.sin(inputs[1] * 6));
         return new Float32Array([val]);
       };
+    case SourceFnType.ComplexFancy2:
+      return (inputs: Float32Array) => {
+        const [aRaw, bRaw] = [inputs[0], inputs[1]];
+
+        if (aRaw >= 0.4 && aRaw <= 0.6 && bRaw >= 0.4 && bRaw <= 0.6) {
+          return new Float32Array([1]);
+        }
+
+        const scaler = 4;
+        const a = aRaw * scaler - Math.trunc(aRaw * scaler);
+        const b = bRaw * scaler - Math.trunc(bRaw * scaler);
+
+        return new Float32Array([Math.sqrt(a * 1 * b * 1)]);
+      };
     case SourceFnType.Ridges:
       return (inputs: Float32Array) => {
         const x = inputs[0] * 5;
@@ -97,7 +123,8 @@ const buildSettings = (
   nnCtx: NNContext,
   sourceFn: (inputs: Float32Array) => Float32Array,
   setOutputData: (action: { responseMatrix: ResponseMatrix; costs: Float32Array | null }) => void,
-  viewportWidth: number
+  viewportWidth: number,
+  onTrain1mmStart: () => void
 ) => [
   {
     type: 'select',
@@ -108,6 +135,7 @@ const buildSettings = (
       'max(a, b)': SourceFnType.Max,
       'min(a, b)': SourceFnType.Min,
       'fancy sine thing': SourceFnType.ComplexFancy,
+      'tiled squareroot thing': SourceFnType.ComplexFancy2,
       xor: SourceFnType.Xor,
       ridges: SourceFnType.Ridges,
       'math.random': SourceFnType.Random,
@@ -131,6 +159,7 @@ const buildSettings = (
     type: 'button',
     label: viewportWidth < 850 ? 'train 1 million' : 'train 1 million examples',
     action: async () => {
+      onTrain1mmStart();
       if (nnCtx.isRunning) {
         return;
       }
@@ -211,20 +240,51 @@ const outputDataReducer = (state: OutputData, action: OutputDataAction): OutputD
   costs: action.costs ? [...state.costs, ...action.costs] : [],
 });
 
-const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
+const RuntimeControls: React.FC<RuntimeControlsProps> = ({
+  nnCtx,
+  isConstrainedLayout,
+  isExpanded,
+  setExpanded,
+}) => {
   const [outputData, dispatchOutputData] = useReducer(outputDataReducer, {
     responseMatrix: [],
     costs: [],
   } as OutputData);
+  // Need to wrap in an object because we can't have raw functions as state due to the ability to pass
+  // callbacks into `setState`
   const [{ sourceFn }, setSourceFn] = useState({
     sourceFn: buildSourceFn(SourceFnType.ComplexFancy),
   });
   const setOutputData = useCallback((action: OutputDataAction) => dispatchOutputData(action), []);
   const viewportWidth = useWindowSize().width;
   const settings = useMemo(
-    () => buildSettings(nnCtx, sourceFn, setOutputData, viewportWidth),
-    [nnCtx, setOutputData, sourceFn, viewportWidth]
+    () => buildSettings(nnCtx, sourceFn, setOutputData, viewportWidth, () => setExpanded(true)),
+    [nnCtx, setExpanded, setOutputData, sourceFn, viewportWidth]
   );
+
+  if (!isExpanded && isConstrainedLayout) {
+    return (
+      <div className='runtime-controls'>
+        <div className='collapsed-runtime-controls'>
+          <ExpandCollapseButton
+            isExpanded={false}
+            setExpanded={setExpanded}
+            style={{ position: 'absolute', zIndex: 2, marginTop: 10, marginLeft: 8 }}
+          />
+          <ControlPanel
+            style={{ width: '100%' }}
+            settings={settings.filter(setting => setting.label.includes('million'))}
+            onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
+          />
+        </div>
+        <OutputDataDisplay
+          sourceFn={sourceFn}
+          isConstrainedLayout={isConstrainedLayout}
+          {...outputData}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className='runtime-controls'>
@@ -233,7 +293,11 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({ nnCtx }) => {
         settings={settings}
         onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
       />
-      {<OutputDataDisplay sourceFn={sourceFn} {...outputData} />}
+      <OutputDataDisplay
+        sourceFn={sourceFn}
+        isConstrainedLayout={isConstrainedLayout}
+        {...outputData}
+      />
     </div>
   );
 };

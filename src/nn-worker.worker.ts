@@ -8,6 +8,7 @@ import { UnreachableException } from 'ameo-utils';
 
 import {
   buildDefaultNetworkDefinition,
+  buildValueInitializerFunctionDefinition,
   buildWeightInitParts,
   NeuralNetworkDefinition,
 } from './types';
@@ -29,8 +30,12 @@ export class NNWorkerCtx {
     }
 
     def.hiddenLayers.forEach((hiddenLayer, layerIx) => {
-      const initWeightsFnParts = buildWeightInitParts(hiddenLayer.initWeightsFnDefinition);
-      const initBiasesFnParts = buildWeightInitParts(hiddenLayer.initBiasesFnDefinition);
+      const initWeightsFnParts = buildWeightInitParts(
+        buildValueInitializerFunctionDefinition(hiddenLayer.initWeightsFnDefinition)
+      );
+      const initBiasesFnParts = buildWeightInitParts(
+        buildValueInitializerFunctionDefinition(hiddenLayer.initBiasesFnDefinition)
+      );
       this.engine.store_hidden_layer_definition(
         layerIx,
         hiddenLayer.activationFunctionType,

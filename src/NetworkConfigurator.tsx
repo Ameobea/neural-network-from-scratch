@@ -9,58 +9,30 @@ import {
   buildDefaultNetworkDefinition,
   CostFunctionType,
   HiddenLayerDefinition,
-  InputLayerDefinition,
   NeuralNetworkDefinition,
   OutputLayerDefinition,
+  ValueInitializerType,
 } from './types';
 import './NetworkConfigurator.css';
 import type { NNContext } from './NNContext';
 import { getSentry } from './sentry';
+import ExpandCollapseButton from './Components/ExpandCollapseButton';
 
 interface NetworkConfiguratorProps {
   nnCtx: NNContext;
+  isConstrainedLayout: boolean;
+  isExpanded: boolean;
+  setIsExpanded: (isExpanded: boolean) => void;
 }
 
-interface InputLayerConfiguratorProps {
-  layer: InputLayerDefinition;
-  onChange: (newLayer: InputLayerDefinition) => void;
-}
-
-const INPUT_LAYER_SETTINGS = [
-  { type: 'range', label: 'input dimensions', min: 1, max: 3, step: 1 },
-];
-
-const InputLayerConfigurator: React.FC<InputLayerConfiguratorProps> = ({ layer, onChange }) => {
-  const state = useMemo(() => ({ 'input dimensions': layer.neuronCount }), [layer.neuronCount]);
-  const viewportWidth = useWindowSize().width;
-  const width = viewportWidth < 850 ? viewportWidth : 400;
-
-  return (
-    <ControlPanel
-      title='input layer'
-      style={{ marginBottom: viewportWidth < 850 ? 0 : 20, width }}
-      state={state}
-      settings={INPUT_LAYER_SETTINGS}
-      onChange={(key: string, val: any) => {
-        const newDef = { ...layer };
-        switch (key) {
-          case 'input dimensions': {
-            if (typeof val !== 'number') {
-              throw new UnreachableException();
-            }
-            newDef.neuronCount = val;
-            break;
-          }
-          default: {
-            console.error('Unhandled key in `InputLayerConfigurator`: ', key);
-          }
-        }
-
-        onChange(newDef);
-      }}
-    />
-  );
-};
+const buildValueInitializerOptions = () => ({
+  'all 0': ValueInitializerType.AllZero,
+  'all 1': ValueInitializerType.AllOne,
+  'random [-0.1, 0.1]': ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+  'random [-1, 1]': ValueInitializerType.RandomNegOnePositiveOne,
+  'random [0, 0.1]': ValueInitializerType.RandomZeroToPositiveOneTenth,
+  'random [0, 1]': ValueInitializerType.RandomZeroToPositiveOne,
+});
 
 const buildHiddenLayerSettings = (onDelete: () => void) => [
   { type: 'range', label: 'neuron count', min: 1, max: 128, step: 1 },
@@ -78,6 +50,16 @@ const buildHiddenLayerSettings = (onDelete: () => void) => [
       swish: ActivationFunctionType.Swish,
       ameo: ActivationFunctionType.Ameo,
     },
+  },
+  {
+    type: 'select',
+    label: 'weight initializer',
+    options: buildValueInitializerOptions(),
+  },
+  {
+    type: 'select',
+    label: 'bias initializer',
+    options: buildValueInitializerOptions(),
   },
   {
     type: 'button',
@@ -106,8 +88,15 @@ const HiddenLayerConfigurator: React.FC<HiddenLayerConfiguratorProps> = ({
     () => ({
       'neuron count': layer.neuronCount,
       'activation function': layer.activationFunctionType,
+      'weight initializer': layer.initWeightsFnDefinition,
+      'bias initializer': layer.initBiasesFnDefinition,
     }),
-    [layer.activationFunctionType, layer.neuronCount]
+    [
+      layer.activationFunctionType,
+      layer.initBiasesFnDefinition,
+      layer.initWeightsFnDefinition,
+      layer.neuronCount,
+    ]
   );
   const viewportWidth = useWindowSize().width;
   const width = viewportWidth < 850 ? viewportWidth : 400;
@@ -130,6 +119,14 @@ const HiddenLayerConfigurator: React.FC<HiddenLayerConfiguratorProps> = ({
           }
           case 'activation function': {
             newDef.activationFunctionType = +val;
+            break;
+          }
+          case 'weight initializer': {
+            newDef.initWeightsFnDefinition = +val;
+            break;
+          }
+          case 'bias initializer': {
+            newDef.initBiasesFnDefinition = +val;
             break;
           }
           default: {
@@ -230,7 +227,12 @@ const OutputLayerConfigurator: React.FC<OutputLayerConfiguratorProps> = ({ layer
   );
 };
 
-const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
+const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({
+  nnCtx,
+  isConstrainedLayout,
+  isExpanded,
+  setIsExpanded,
+}) => {
   const [definition, setDefinitionInner] = useState<NeuralNetworkDefinition>(
     buildDefaultNetworkDefinition()
   );
@@ -245,64 +247,79 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({ nnCtx }) => {
   const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
-    <div className='network-configurator'>
-      {/* <InputLayerConfigurator
-        layer={definition.inputLayer}
-        onChange={newInputLayer => setDefinition({ ...definition, inputLayer: newInputLayer })}
-      /> */}
-      <div
-        style={{
-          fontFamily: "'Hack', 'Oxygen Mono', 'Input', monospace",
-          fontSize: 10,
-          textAlign: 'center',
-          fontStyle: 'italic',
-          marginTop: viewportWidth < 850 ? 8 : 0,
-          marginBottom: 8,
-          color: '#999',
-        }}
-      >
-        Input layer has 2 dimensions, each with a range of [0, 1].
-      </div>
-      {definition.hiddenLayers.map((hiddenLayer, layerIx) => (
-        <HiddenLayerConfigurator
-          key={layerIx}
-          layerIx={layerIx}
-          layer={hiddenLayer}
-          onChange={newHiddenLayer => {
-            setDefinition(R.set(R.lensPath(['hiddenLayers', layerIx]), newHiddenLayer, definition));
+    <div className={`network-configurator${isConstrainedLayout ? ' constrained-layout' : ''}`}>
+      {isConstrainedLayout ? null : (
+        <div
+          style={{
+            fontFamily: "'Hack', 'Oxygen Mono', 'Input', monospace",
+            fontSize: 10,
+            textAlign: 'center',
+            fontStyle: 'italic',
+            marginTop: viewportWidth < 850 ? 8 : 0,
+            marginBottom: 8,
+            color: '#999',
           }}
-          onDelete={() => {
-            if (definition.hiddenLayers.length === 1) {
-              return;
-            }
+        >
+          Input layer has 2 dimensions, each with a range of [0, 1].
+        </div>
+      )}
+      {isConstrainedLayout && !isExpanded ? (
+        <div className='collapsed-network-configurator' onClick={() => setIsExpanded(true)}>
+          <ExpandCollapseButton
+            isExpanded={false}
+            setExpanded={setIsExpanded}
+            style={{ marginTop: 2, marginBottom: -2 }}
+          />
+          <div>Click to open network config</div>
+        </div>
+      ) : (
+        <>
+          {definition.hiddenLayers.map((hiddenLayer, layerIx) => (
+            <HiddenLayerConfigurator
+              key={layerIx}
+              layerIx={layerIx}
+              layer={hiddenLayer}
+              onChange={newHiddenLayer => {
+                setDefinition(
+                  R.set(R.lensPath(['hiddenLayers', layerIx]), newHiddenLayer, definition)
+                );
+              }}
+              onDelete={() => {
+                if (definition.hiddenLayers.length === 1) {
+                  return;
+                }
 
-            setDefinition({
-              ...definition,
-              hiddenLayers: R.remove(layerIx, 1, definition.hiddenLayers),
-            });
-          }}
-        />
-      ))}
-      <ControlPanel
-        style={{ width }}
-        settings={[
-          {
-            type: 'button',
-            label: 'add hidden layer',
-            action: () => {
-              getSentry()?.captureMessage('Add hidden layer button clicked');
-              setDefinition({
-                ...definition,
-                hiddenLayers: [...definition.hiddenLayers, buildDefaultHiddenLayerDefinition()],
-              });
-            },
-          },
-        ]}
-      />
-      <OutputLayerConfigurator
-        layer={definition.outputLayer}
-        onChange={newOutputLayer => setDefinition({ ...definition, outputLayer: newOutputLayer })}
-      />
+                setDefinition({
+                  ...definition,
+                  hiddenLayers: R.remove(layerIx, 1, definition.hiddenLayers),
+                });
+              }}
+            />
+          ))}
+          <ControlPanel
+            style={{ width }}
+            settings={[
+              {
+                type: 'button',
+                label: 'add hidden layer',
+                action: () => {
+                  getSentry()?.captureMessage('Add hidden layer button clicked');
+                  setDefinition({
+                    ...definition,
+                    hiddenLayers: [...definition.hiddenLayers, buildDefaultHiddenLayerDefinition()],
+                  });
+                },
+              },
+            ]}
+          />
+          <OutputLayerConfigurator
+            layer={definition.outputLayer}
+            onChange={newOutputLayer =>
+              setDefinition({ ...definition, outputLayer: newOutputLayer })
+            }
+          />
+        </>
+      )}
     </div>
   );
 };

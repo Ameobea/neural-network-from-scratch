@@ -1,0 +1,6 @@
+.expand-collapse-button {
+  cursor: pointer;
+  padding: 2px;
+  font-family: 'Hack', 'Oxygen Mono', 'Input', monospace;
+  user-select: none;
+}

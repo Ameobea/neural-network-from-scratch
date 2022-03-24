@@ -8,7 +8,7 @@
 
 @media screen and (min-width: 850px) {
   .network-configurator {
-    --response-viz-height: max(400px, 100vh - 335px);
+    --response-viz-height: max(300px, 100vh - 335px);
     --cost-viz-height: 150px;
     --runtime-config-control-panel-height: 150px;
     --horizontal-padding: 40px;
@@ -29,4 +29,23 @@
     max-height: 60vh;
     border-bottom: 1px solid #121212;
   }
+
+  .network-configurator.constrained-layout {
+    max-height: 40vh !important;
+  }
+}
+
+.collapsed-network-configurator {
+  cursor: pointer;
+  background: rgb(35, 35, 35);
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  padding-left: 8px;
+  padding-right: 16px;
+  align-items: center;
+  color: #999;
+  font-family: 'Hack', 'Oxygen Mono', 'Input', monospace;
+  font-size: 14px;
 }

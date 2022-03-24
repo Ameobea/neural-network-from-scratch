@@ -6,7 +6,10 @@
     thread_local
 )]
 
-use libnn::{AMEO, ActivationFunction, CostFunction, DenseLayer, GAUSSIAN, GCU, IDENTITY, LEAKY_RELU, MEAN_SQUARED_ERROR, Network, OutputLayer, RELU, SIGMOID, SWISH, TANH, Weight};
+use libnn::{
+    ActivationFunction, CostFunction, DenseLayer, Network, OutputLayer, Weight, AMEO, GAUSSIAN, GCU, IDENTITY,
+    LEAKY_RELU, MEAN_SQUARED_ERROR, RELU, SIGMOID, SWISH, TANH,
+};
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 
@@ -108,7 +111,8 @@ impl HiddenLayerDefinition {
         HiddenLayerDefinition {
             neuron_count: 0,
             activation_function_type: ActivationFunctionType::Identity,
-            init_weights: InitWeightFnDefinition::Constant(0.0),
+            // init_weights: InitWeightFnDefinition::Constant(0.0),
+            init_weights: InitWeightFnDefinition::ContinousUniformDistribution { min: -1., max: 1. },
             init_biases: InitWeightFnDefinition::Constant(0.0),
         }
     }
