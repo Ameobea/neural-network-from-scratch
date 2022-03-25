@@ -1,3 +1,13 @@
+html.constrained-layout {
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+html {
+  background-color: #101010;
+}
+
 * {
   scrollbar-color: rgb(27, 27, 27);
 }

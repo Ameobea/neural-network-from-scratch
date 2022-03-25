@@ -6,6 +6,10 @@ import { NNContext } from './NNContext';
 import RuntimeControls from './RuntimeControls';
 
 const isConstrainedLayout = window.location.search.includes('constrainedLayout');
+if (isConstrainedLayout) {
+  const htmlElem = document.getElementsByTagName('html')[0] as HTMLHtmlElement;
+  htmlElem.classList.add('constrained-layout');
+}
 
 const Content: React.FC<{ nnCtx: NNContext }> = ({ nnCtx }) => {
   const [expanded, setExpanded] = useState<'configurator' | 'runtime'>('configurator');

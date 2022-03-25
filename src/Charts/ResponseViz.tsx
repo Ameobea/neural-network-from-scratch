@@ -66,7 +66,7 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
         show: false,
       },
       top: isConstrainedLayout ? -50 : undefined,
-      bottom: isConstrainedLayout ? -50 : undefined,
+      bottom: isConstrainedLayout ? 0 : undefined,
     },
     series: [
       {

@@ -325,8 +325,6 @@ impl DenseLayer {
                 unsafe { v128_load32_splat(gradient_of_output_neurons.as_ptr().add(output_neuron_ix) as *const _) };
 
             for chunk_ix in 0..chunk_count {
-                // let gradient_of_output_neuron =
-                //     unsafe { v128_load(gradient_of_output_neurons.as_ptr().add(chunk_ix * 4) as *const _) };
                 let errors = unsafe { v128_load(self.errors_scratch.as_ptr().add(chunk_ix * 4) as *const _) };
                 let output_weights =
                     unsafe { v128_load(output_weights_for_neuron.as_ptr().add(chunk_ix * 4) as *const _) };
