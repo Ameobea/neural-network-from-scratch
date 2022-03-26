@@ -224,7 +224,7 @@ pub fn create_nn_ctx(
         outputs: output_layer,
         learning_rate,
     };
-    let viz_state = LayerVizState::new(&network);
+    let viz_state = LayerVizState::new(&network, input_count);
 
     let ctx = box NNCtx { network, viz_state };
     Box::into_raw(ctx)
@@ -302,7 +302,13 @@ pub fn predict_batch(
 pub fn update_viz(ctx: *mut NNCtx, example: &[Weight]) {
     let ctx = unsafe { &mut (*ctx) };
     ctx.network.forward_propagate(example);
-    ctx.viz_state.update(&ctx.network);
+    ctx.viz_state.update(&ctx.network, example);
+}
+
+#[wasm_bindgen]
+pub fn get_viz_input_layer_colors(ctx: *mut NNCtx) -> Vec<u8> {
+    let ctx = unsafe { &mut (*ctx) };
+    ctx.viz_state.input_layer_buffer.clone()
 }
 
 #[wasm_bindgen]
@@ -315,4 +321,10 @@ pub fn get_viz_hidden_layer_colors(ctx: *mut NNCtx, hidden_layer_ix: usize) -> V
 pub fn get_viz_output_layer_colors(ctx: *mut NNCtx) -> Vec<u8> {
     let ctx = unsafe { &mut (*ctx) };
     ctx.viz_state.output_layer_buffer.clone()
+}
+
+#[wasm_bindgen]
+pub fn build_neuron_response_viz(ctx: *mut NNCtx, layer_ix: usize, neuron_ix: usize, size: usize) -> Vec<u8> {
+    let ctx = unsafe { &mut (*ctx) };
+    LayerVizState::build_neuron_response_viz(&mut ctx.network, layer_ix, neuron_ix, size)
 }

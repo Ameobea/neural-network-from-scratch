@@ -3,13 +3,13 @@ import React, { useEffect, useRef } from 'react';
 class CoordPickerEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private coord: React.MutableRefObject<Float32Array>;
+  private coord: Float32Array;
   private canvasSize: { width: number; height: number } = { width: 0, height: 0 };
   private onChange: () => void;
 
   constructor(
     canvas: HTMLCanvasElement,
-    coord: React.MutableRefObject<Float32Array>,
+    coord: Float32Array,
     onChange: () => void
   ) {
     canvas.onmousedown = this.handleMouseDown;
@@ -27,20 +27,22 @@ class CoordPickerEngine {
     const { ctx } = this;
     ctx.clearRect(0, 0, this.canvasSize.width, this.canvasSize.height);
     ctx.fillStyle = '#ff0000';
-    ctx.fillRect(
-      this.coord.current[0] * this.canvasSize.width,
-      this.coord.current[1] * this.canvasSize.height,
-      2,
-      2
+    ctx.beginPath();
+    ctx.arc(
+      this.coord[0] * this.canvasSize.width,
+      (1 - this.coord[1]) * this.canvasSize.height,
+      4,
+      0,
+      2 * Math.PI
     );
+    ctx.fill();
   }
 
   private handleMouseDown = (e: MouseEvent) => {
-    console.log('fu');
     const x = e.clientX - this.canvas.offsetLeft;
     const y = e.clientY - this.canvas.offsetTop;
-    this.coord.current[0] = x / this.canvasSize.width;
-    this.coord.current[1] = y / this.canvasSize.height;
+    this.coord[0] = x / this.canvasSize.width;
+    this.coord[1] = 1 - y / this.canvasSize.height;
     this.render();
     this.onChange();
 
@@ -54,8 +56,8 @@ class CoordPickerEngine {
   private handleMouseMove = (e: MouseEvent) => {
     const x = e.clientX - this.canvas.offsetLeft;
     const y = e.clientY - this.canvas.offsetTop;
-    this.coord.current[0] = x / this.canvasSize.width;
-    this.coord.current[1] = y / this.canvasSize.height;
+    this.coord[0] = x / this.canvasSize.width;
+    this.coord[1] = 1 - y / this.canvasSize.height;
     this.render();
     this.onChange();
   };
@@ -67,7 +69,7 @@ class CoordPickerEngine {
 }
 
 interface CoordPickerProps {
-  coord: React.MutableRefObject<Float32Array>;
+  coord: Float32Array;
   onChange: () => void;
 }
 
@@ -83,17 +85,15 @@ const CoordPicker: React.FC<CoordPickerProps> = ({ coord, onChange }) => {
   return (
     <div className='coord-picker'>
       <canvas
-        width={100}
-        height={100}
+        width={250}
+        height={250}
         ref={canvas => {
           if (!canvas) {
-            console.log('wtf');
             engine.current?.dispose();
             engine.current = null;
             return;
           }
 
-          console.log('re-init');
           engine.current?.dispose();
           engine.current = new CoordPickerEngine(canvas, coord, onChange);
         }}

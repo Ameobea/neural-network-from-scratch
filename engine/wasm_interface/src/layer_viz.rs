@@ -105,25 +105,28 @@ fn colorize_output(val: f32) -> [u8; 4] {
 
 const VIZ_SCALE_MULTIPLIER: usize = 16;
 
-pub fn build_layer_outputs_buf(outputs: &[f32]) -> Vec<u8> {
-    vec![0; outputs.len() * VIZ_SCALE_MULTIPLIER * VIZ_SCALE_MULTIPLIER * 4]
+pub fn build_layer_outputs_buf(output_count: usize) -> Vec<u8> {
+    vec![0; output_count * VIZ_SCALE_MULTIPLIER * VIZ_SCALE_MULTIPLIER * 4]
 }
 
 pub struct LayerVizState {
+    pub input_layer_buffer: Vec<u8>,
     pub hidden_layer_buffers: Vec<Vec<u8>>,
     pub output_layer_buffer: Vec<u8>,
 }
 
 impl LayerVizState {
-    pub fn new(network: &Network) -> Self {
+    pub fn new(network: &Network, input_buf_size: usize) -> Self {
+        let input_layer_buffer = build_layer_outputs_buf(input_buf_size);
         let hidden_layer_buffers = network
             .hidden_layers
             .iter()
-            .map(|layer| build_layer_outputs_buf(&layer.outputs))
+            .map(|layer| build_layer_outputs_buf(layer.outputs.len()))
             .collect();
-        let output_layer_buffer = build_layer_outputs_buf(&network.outputs.outputs);
+        let output_layer_buffer = build_layer_outputs_buf(network.outputs.outputs.len());
 
         Self {
+            input_layer_buffer,
             hidden_layer_buffers,
             output_layer_buffer,
         }
@@ -152,10 +155,34 @@ impl LayerVizState {
         }
     }
 
-    pub fn update(&mut self, network: &Network) {
+    pub fn update(&mut self, network: &Network, example: &[f32]) {
+        Self::populate_layer_outputs_buf(&mut self.input_layer_buffer, example);
         for (layer_ix, hidden_layer) in network.hidden_layers.iter().enumerate() {
             Self::populate_layer_outputs_buf(&mut self.hidden_layer_buffers[layer_ix], &hidden_layer.outputs);
         }
         Self::populate_layer_outputs_buf(&mut self.output_layer_buffer, &network.outputs.outputs);
+    }
+
+    pub fn build_neuron_response_viz(network: &mut Network, layer_ix: usize, neuron_ix: usize, size: usize) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(size * size * 4);
+
+        for y in (0..size).rev() {
+            let y = y as f32 / (size - 1) as f32;
+            for x in 0..size {
+                let x = x as f32 / (size - 1) as f32;
+                let example = [x, y];
+                network.forward_propagate(&example);
+                let neuron_output = match layer_ix {
+                    0 => example[neuron_ix],
+                    layer_ix if layer_ix <= network.hidden_layers.len() =>
+                        network.hidden_layers[layer_ix - 1].outputs[neuron_ix],
+                    _ => network.outputs.outputs[neuron_ix],
+                };
+                let color = colorize_output(neuron_output);
+                buf.extend_from_slice(&color);
+            }
+        }
+
+        buf
     }
 }

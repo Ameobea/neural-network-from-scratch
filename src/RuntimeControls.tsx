@@ -33,6 +33,11 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   costs,
   isConstrainedLayout,
 }) => {
+  const [selectedNeuron, setSelectedNeuron] = useState<{
+    layerIx: number;
+    neuronIx: number;
+  } | null>(null);
+
   return (
     <div className='charts'>
       <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
@@ -44,7 +49,7 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
             inputRange={[0, 1]}
             isConstrainedLayout={isConstrainedLayout}
           />
-          <LayersViz nnCtx={nnCtx} />
+          <LayersViz nnCtx={nnCtx} setSelectedNeuron={setSelectedNeuron} />
         </div>
         <LazyCostsPlot costs={costs} />
       </Suspense>
@@ -172,15 +177,6 @@ const buildSettings = (
       getSentry()?.captureMessage('Reset button clicked');
       setOutputData({ responseMatrix: [], costs: null });
       await nnCtx.uninit();
-    },
-  },
-  {
-    type: 'button',
-    label: 'DEV DEV DEV init',
-    action: async () => {
-      if (!(await nnCtx.getIsInitialized())) {
-        await nnCtx.init(nnCtx.definition);
-      }
     },
   },
   {

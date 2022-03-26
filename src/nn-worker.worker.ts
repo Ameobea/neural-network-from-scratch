@@ -157,11 +157,13 @@ export class NNWorkerCtx {
     for (let i = 0; i < this.hiddenLayerCount; i++) {
       hiddenLayerColors.push(this.engine.get_viz_hidden_layer_colors(this.ctxPtr, i));
     }
+    const inputLayerColors = this.engine.get_viz_input_layer_colors(this.ctxPtr);
     const outputLayerColors = this.engine.get_viz_output_layer_colors(this.ctxPtr);
 
-    return Comlink.transfer({ hiddenLayerColors, outputLayerColors }, [
+    return Comlink.transfer({ hiddenLayerColors, inputLayerColors, outputLayerColors }, [
       ...hiddenLayerColors.map(c => c.buffer),
       outputLayerColors.buffer,
+      inputLayerColors.buffer,
     ]);
   }
 }
