@@ -6,6 +6,11 @@ build-engine:
     && RUSTFLAGS="-Ctarget-feature=+simd128" cargo build --release --target wasm32-unknown-unknown
   wasm-bindgen ./engine/target/wasm32-unknown-unknown/release/wasm_interface.wasm --browser --remove-producers-section --out-dir ./src
 
+debug-engine:
+  cd engine/wasm_interface \
+    && RUSTFLAGS="-Ctarget-feature=+simd128" cargo build --target wasm32-unknown-unknown
+  wasm-bindgen ./engine/target/wasm32-unknown-unknown/debug/wasm_interface.wasm --browser --remove-producers-section --out-dir ./src
+
 run:
   just build-engine
 

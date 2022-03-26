@@ -81,4 +81,8 @@ export class NNContext {
 
     return nnWorker.init(null);
   }
+
+  public getVizData(example: Float32Array) {
+    return nnWorker.getVizData(example);
+  }
 }

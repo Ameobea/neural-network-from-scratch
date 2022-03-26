@@ -1,0 +1,12 @@
+.layers-viz {
+  max-width: 800px;
+  overflow-x: auto;
+}
+
+.layers-viz canvas {
+  background-color: #000;
+}
+
+.coord-picker canvas {
+  background-color: #333;
+}

@@ -8,6 +8,7 @@ import './RuntimeControls.css';
 import Loading from './Loading';
 import { getSentry } from './sentry';
 import ExpandCollapseButton from './Components/ExpandCollapseButton';
+import LayersViz from './Charts/LayersViz/LayersViz';
 
 const Charts = import('./Charts');
 
@@ -22,9 +23,11 @@ interface OutputData {
 interface OutputDataDisplayProps extends OutputData {
   sourceFn: (inputs: Float32Array) => Float32Array;
   isConstrainedLayout: boolean;
+  nnCtx: NNContext;
 }
 
 const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
+  nnCtx,
   responseMatrix,
   sourceFn,
   costs,
@@ -33,12 +36,16 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   return (
     <div className='charts'>
       <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
-        <LazyResponseViz
-          data={responseMatrix}
-          sourceFn={sourceFn}
-          inputRange={[0, 1]}
-          isConstrainedLayout={isConstrainedLayout}
-        />
+        {/* TODO: Responsive styling */}
+        <div style={{ display: 'flex', flexDirection: 'row' }}>
+          <LazyResponseViz
+            data={responseMatrix}
+            sourceFn={sourceFn}
+            inputRange={[0, 1]}
+            isConstrainedLayout={isConstrainedLayout}
+          />
+          <LayersViz nnCtx={nnCtx} />
+        </div>
         <LazyCostsPlot costs={costs} />
       </Suspense>
     </div>
@@ -59,6 +66,7 @@ enum SourceFnType {
   Min,
   ComplexFancy,
   ComplexFancy2,
+  Bowl,
   Random,
   Ridges,
   Xor,
@@ -99,6 +107,13 @@ const buildSourceFn = (fnType: SourceFnType) => {
 
         return new Float32Array([Math.sqrt(a * 1 * b * 1)]);
       };
+    case SourceFnType.Bowl:
+      return (inputs: Float32Array) => {
+        const [aRaw, bRaw] = [inputs[0], inputs[1]];
+        const [a, b] = [aRaw, bRaw].map(x => x * 2 - 1);
+        const val = Math.pow(Math.max(Math.abs(a), Math.abs(b)), 1.5);
+        return new Float32Array([val]);
+      };
     case SourceFnType.Ridges:
       return (inputs: Float32Array) => {
         const x = inputs[0] * 5;
@@ -122,7 +137,10 @@ const buildSourceFn = (fnType: SourceFnType) => {
 const buildSettings = (
   nnCtx: NNContext,
   sourceFn: (inputs: Float32Array) => Float32Array,
-  setOutputData: (action: { responseMatrix: ResponseMatrix; costs: Float32Array | null }) => void,
+  setOutputData: (newOutputData: {
+    responseMatrix: ResponseMatrix;
+    costs: Float32Array | null;
+  }) => void,
   viewportWidth: number,
   onTrain1mmStart: () => void
 ) => [
@@ -135,6 +153,7 @@ const buildSettings = (
       'max(a, b)': SourceFnType.Max,
       'min(a, b)': SourceFnType.Min,
       'fancy sine thing': SourceFnType.ComplexFancy,
+      bowl: SourceFnType.Bowl,
       'tiled squareroot thing': SourceFnType.ComplexFancy2,
       xor: SourceFnType.Xor,
       ridges: SourceFnType.Ridges,
@@ -153,6 +172,15 @@ const buildSettings = (
       getSentry()?.captureMessage('Reset button clicked');
       setOutputData({ responseMatrix: [], costs: null });
       await nnCtx.uninit();
+    },
+  },
+  {
+    type: 'button',
+    label: 'DEV DEV DEV init',
+    action: async () => {
+      if (!(await nnCtx.getIsInitialized())) {
+        await nnCtx.init(nnCtx.definition);
+      }
     },
   },
   {
@@ -278,6 +306,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
           />
         </div>
         <OutputDataDisplay
+          nnCtx={nnCtx}
           sourceFn={sourceFn}
           isConstrainedLayout={isConstrainedLayout}
           {...outputData}
@@ -294,6 +323,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
         onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
       />
       <OutputDataDisplay
+        nnCtx={nnCtx}
         sourceFn={sourceFn}
         isConstrainedLayout={isConstrainedLayout}
         {...outputData}

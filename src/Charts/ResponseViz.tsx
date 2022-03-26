@@ -14,6 +14,8 @@ interface ResponseVizProps {
 
 const style = {
   height: 'max(300px, calc(100vh - 335px))',
+  maxWidth: '800px',
+  width: '50%',
 };
 
 const ResponseViz: React.FC<ResponseVizProps> = ({

@@ -1,7 +1,7 @@
 [package]
 name = "wasm_interface"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -12,3 +12,5 @@ libnn = { path = "../libnn" }
 rand = { version = "0.7", default_features = false, features = ["alloc"] }
 console_error_panic_hook = "0.1"
 pcg = "4.0"
+palette = "0.6"
+fastapprox = "0.3"

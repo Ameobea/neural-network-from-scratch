@@ -18,6 +18,7 @@ const engineModule = import('./wasm_interface');
 export class NNWorkerCtx {
   private engine: typeof import('./wasm_interface');
   private ctxPtr: number | null = null;
+  private hiddenLayerCount = 2;
   private definition: NeuralNetworkDefinition = buildDefaultNetworkDefinition();
 
   constructor(engine: typeof import('./wasm_interface')) {
@@ -52,6 +53,7 @@ export class NNWorkerCtx {
     const outputLayerWeightInitParts = buildWeightInitParts(
       def.outputLayer.initWeightsFnDefinition
     );
+    this.hiddenLayerCount = def.hiddenLayers.length;
     this.ctxPtr = this.engine.create_nn_ctx(
       def.inputLayer.neuronCount,
       def.outputLayer.neuronCount,
@@ -70,6 +72,9 @@ export class NNWorkerCtx {
       this.definition = def;
       this.buildCtx(def);
     } else {
+      if (this.ctxPtr) {
+        this.engine.free_nn_ctx(this.ctxPtr);
+      }
       this.ctxPtr = null;
     }
   }
@@ -139,20 +144,25 @@ export class NNWorkerCtx {
     }
 
     return this.engine.train_many_examples(this.ctxPtr, examples, expecteds, learningRate);
+  }
 
-    // const inputDims = this.definition.inputLayer.neuronCount;
-    // const outputDims = this.definition.outputLayer.neuronCount;
-    // const iterations = examples.length / inputDims;
-    // const costs = new Float32Array(iterations);
+  public getVizData(example: Float32Array) {
+    if (!this.ctxPtr) {
+      return null;
+    }
 
-    // for (let i = 0; i < iterations; i++) {
-    //   const example = examples.subarray(i * inputDims, i * inputDims + inputDims);
-    //   const expected = expecteds.subarray(i * outputDims, i * outputDims + outputDims);
-    //   const cost = this.engine.train(this.ctxPtr!, example, expected, learningRate);
-    //   costs[i] = cost;
-    // }
+    this.engine.update_viz(this.ctxPtr, example);
 
-    // return costs;
+    const hiddenLayerColors = [];
+    for (let i = 0; i < this.hiddenLayerCount; i++) {
+      hiddenLayerColors.push(this.engine.get_viz_hidden_layer_colors(this.ctxPtr, i));
+    }
+    const outputLayerColors = this.engine.get_viz_output_layer_colors(this.ctxPtr);
+
+    return Comlink.transfer({ hiddenLayerColors, outputLayerColors }, [
+      ...hiddenLayerColors.map(c => c.buffer),
+      outputLayerColors.buffer,
+    ]);
   }
 }
 

@@ -6,6 +6,7 @@
     thread_local
 )]
 
+use layer_viz::{initialize_colorizer_luts, LayerVizState};
 use libnn::{
     ActivationFunction, CostFunction, DenseLayer, Network, OutputLayer, Weight, AMEO, GAUSSIAN, GCU, IDENTITY,
     LEAKY_RELU, MEAN_SQUARED_ERROR, RELU, SIGMOID, SWISH, TANH,
@@ -13,8 +14,11 @@ use libnn::{
 use rand::prelude::*;
 use wasm_bindgen::prelude::*;
 
+mod layer_viz;
+
 pub struct NNCtx {
     pub network: Network,
+    pub viz_state: LayerVizState,
 }
 
 #[derive(Clone, Copy)]
@@ -111,7 +115,6 @@ impl HiddenLayerDefinition {
         HiddenLayerDefinition {
             neuron_count: 0,
             activation_function_type: ActivationFunctionType::Identity,
-            // init_weights: InitWeightFnDefinition::Constant(0.0),
             init_weights: InitWeightFnDefinition::ContinousUniformDistribution { min: -1., max: 1. },
             init_biases: InitWeightFnDefinition::Constant(0.0),
         }
@@ -173,6 +176,7 @@ fn maybe_init() {
 
     console_error_panic_hook::set_once();
     unsafe { RNG = pcg::Pcg::seed_from_u64(10203040382934) };
+    initialize_colorizer_luts();
 }
 
 #[wasm_bindgen]
@@ -215,13 +219,14 @@ pub fn create_nn_ctx(
         output_count,
     );
 
-    let ctx = box NNCtx {
-        network: Network {
-            hidden_layers,
-            outputs: output_layer,
-            learning_rate,
-        },
+    let network = Network {
+        hidden_layers,
+        outputs: output_layer,
+        learning_rate,
     };
+    let viz_state = LayerVizState::new(&network);
+
+    let ctx = box NNCtx { network, viz_state };
     Box::into_raw(ctx)
 }
 
@@ -291,4 +296,23 @@ pub fn predict_batch(
     }
 
     outputs
+}
+
+#[wasm_bindgen]
+pub fn update_viz(ctx: *mut NNCtx, example: &[Weight]) {
+    let ctx = unsafe { &mut (*ctx) };
+    ctx.network.forward_propagate(example);
+    ctx.viz_state.update(&ctx.network);
+}
+
+#[wasm_bindgen]
+pub fn get_viz_hidden_layer_colors(ctx: *mut NNCtx, hidden_layer_ix: usize) -> Vec<u8> {
+    let ctx = unsafe { &mut (*ctx) };
+    ctx.viz_state.hidden_layer_buffers[hidden_layer_ix].clone()
+}
+
+#[wasm_bindgen]
+pub fn get_viz_output_layer_colors(ctx: *mut NNCtx) -> Vec<u8> {
+    let ctx = unsafe { &mut (*ctx) };
+    ctx.viz_state.output_layer_buffer.clone()
 }

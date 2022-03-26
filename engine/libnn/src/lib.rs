@@ -113,10 +113,12 @@ impl ActivationFunction for ReLU {
         let chunk_count = (dst.len() - remainder) / 4;
         let zero_v = f32x4_splat(0.);
 
+        debug_assert!(dst.len() == chunk_count * 4 + remainder);
         for chunk_ix in 0..chunk_count {
             let outputs = unsafe { v128_load(outputs_before_activation.as_ptr().add(chunk_ix * 4) as *const _) };
             let errors = unsafe { v128_load(errors.as_ptr().add(chunk_ix * 4) as *const _) };
             let gt_mask = f32x4_gt(outputs, zero_v);
+
             unsafe {
                 v128_store(
                     dst.as_mut_ptr().add(chunk_ix * 4) as *mut _,
@@ -319,8 +321,13 @@ impl DenseLayer {
         let chunk_count = (self.errors_scratch.len() - remainder) / 4;
         self.errors_scratch.fill(0.);
 
+        debug_assert_eq!(self.errors_scratch.len(), chunk_count * 4 + remainder);
         for output_neuron_ix in 0..gradient_of_output_neurons.len() {
-            let output_weights_for_neuron = unsafe { &output_weights.get_unchecked(output_neuron_ix) };
+            let output_weights_for_neuron = if cfg!(debug_assertions) {
+                &output_weights[output_neuron_ix]
+            } else {
+                unsafe { &output_weights.get_unchecked(output_neuron_ix) }
+            };
             let gradient_of_output_neuron =
                 unsafe { v128_load32_splat(gradient_of_output_neurons.as_ptr().add(output_neuron_ix) as *const _) };
 
@@ -338,11 +345,16 @@ impl DenseLayer {
             }
 
             // remainders
-            for neuron_ix in (chunk_count * 4)..gradient_of_output_neurons.len() {
+            for neuron_ix in (chunk_count * 4)..self.errors_scratch.len() {
                 unsafe {
-                    *self.errors_scratch.get_unchecked_mut(neuron_ix) += *output_weights_for_neuron
-                        .get_unchecked(neuron_ix)
-                        * *gradient_of_output_neurons.get_unchecked(neuron_ix);
+                    if cfg!(debug_assertions) {
+                        self.errors_scratch[neuron_ix] =
+                            output_weights_for_neuron[neuron_ix] * gradient_of_output_neurons[neuron_ix];
+                    } else {
+                        *self.errors_scratch.get_unchecked_mut(neuron_ix) += *output_weights_for_neuron
+                            .get_unchecked(neuron_ix)
+                            * *gradient_of_output_neurons.get_unchecked(neuron_ix);
+                    }
                 }
             }
         }
