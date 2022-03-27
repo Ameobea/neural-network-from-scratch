@@ -166,6 +166,15 @@ export class NNWorkerCtx {
       inputLayerColors.buffer,
     ]);
   }
+
+  public getNeuronResponse(layerIx: number, neuronIx: number, size: number) {
+    if (!this.ctxPtr) {
+      return null;
+    }
+
+    const response = this.engine.build_neuron_response_viz(this.ctxPtr, layerIx, neuronIx, size);
+    return Comlink.transfer(response, [response.buffer]);
+  }
 }
 
 const init = async () => {

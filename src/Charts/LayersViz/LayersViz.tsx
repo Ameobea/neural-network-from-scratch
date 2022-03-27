@@ -4,6 +4,7 @@ import { NNContext } from 'src/NNContext';
 import CoordPicker from './CoordPicker';
 
 import './LayersViz.css';
+import NeuronResponsePlot from './NeuronResponsePlot';
 
 const PADDING_TOP = 10;
 const VIZ_SCALE_MULTIPLIER = 16;
@@ -11,11 +12,11 @@ const LAYER_SPACING_Y = VIZ_SCALE_MULTIPLIER * 2.5;
 
 interface LayersVizProps {
   nnCtx: NNContext;
-  setSelectedNeuron: (selectedNeuron: { layerIx: number; neuronIx: number } | null) => void;
 }
 
 interface LayersVizState {
   cursor: string;
+  selectedNeuron: { layerIx: number; neuronIx: number } | null;
 }
 
 class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
@@ -23,16 +24,6 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   private isRendering = false;
   private coord = new Float32Array([0.5, 0.5]);
   private intervalHandle: number | null = null;
-  private _selectedNeuron: { layerIx: number; neuronIx: number } | null = null;
-
-  private get selectedNeuron() {
-    return this._selectedNeuron;
-  }
-
-  private set selectedNeuron(value: { layerIx: number; neuronIx: number } | null) {
-    this._selectedNeuron = value;
-    this.props.setSelectedNeuron(value);
-  }
 
   private layerSizes: { input: number; hidden: number[]; output: number } = {
     input: 0,
@@ -42,7 +33,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
 
   constructor(props: LayersVizProps) {
     super(props);
-    this.state = { cursor: 'default' };
+    this.state = { cursor: 'default', selectedNeuron: null };
   }
 
   private drawLayer = (layerColors: Uint8Array, layerIx: number) => {
@@ -98,18 +89,18 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     );
     if (
       !neuronUnderPointer ||
-      (this.selectedNeuron &&
-        this.selectedNeuron.layerIx === neuronUnderPointer.layerIx &&
-        this.selectedNeuron.neuronIx === neuronUnderPointer.neuronIx)
+      (this.state.selectedNeuron &&
+        this.state.selectedNeuron.layerIx === neuronUnderPointer.layerIx &&
+        this.state.selectedNeuron.neuronIx === neuronUnderPointer.neuronIx)
     ) {
-      if (this.selectedNeuron) {
-        this.selectedNeuron = null;
+      if (this.state.selectedNeuron) {
+        this.setState({ selectedNeuron: null });
         this.forceRender();
       }
       return;
     }
 
-    this.selectedNeuron = neuronUnderPointer;
+    this.setState({ selectedNeuron: neuronUnderPointer });
     this.forceRender();
   };
 
@@ -125,13 +116,13 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   };
 
   private maybeRenderSelectedNeuron = () => {
-    if (!this.selectedNeuron) {
+    if (!this.state.selectedNeuron) {
       return;
     }
 
     const ctx = this.ctx!;
-    const offsetX = this.selectedNeuron.neuronIx * VIZ_SCALE_MULTIPLIER;
-    const offsetY = PADDING_TOP + this.selectedNeuron.layerIx * LAYER_SPACING_Y;
+    const offsetX = this.state.selectedNeuron.neuronIx * VIZ_SCALE_MULTIPLIER;
+    const offsetY = PADDING_TOP + this.state.selectedNeuron.layerIx * LAYER_SPACING_Y;
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 3;
     ctx.strokeRect(offsetX, offsetY, VIZ_SCALE_MULTIPLIER, VIZ_SCALE_MULTIPLIER);
@@ -205,7 +196,10 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
         onMouseDown={this.handleCanvasMouseDown}
         onMouseMove={this.handleCanvasMouseMove}
       />
-      <CoordPicker coord={this.coord} onChange={this.forceRender} />
+      <div className='bottom-vizs'>
+        <CoordPicker coord={this.coord} onChange={this.forceRender} />
+        <NeuronResponsePlot selectedNeuron={this.state.selectedNeuron} nnCtx={this.props.nnCtx} />
+      </div>
     </div>
   );
 }

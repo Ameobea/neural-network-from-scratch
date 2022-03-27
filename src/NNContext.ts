@@ -85,4 +85,8 @@ export class NNContext {
   public getVizData(example: Float32Array) {
     return nnWorker.getVizData(example);
   }
+
+  public getNeuronResponse(layerIx: number, neuronIx: number, size: number) {
+    return nnWorker.getNeuronResponse(layerIx, neuronIx, size);
+  }
 }

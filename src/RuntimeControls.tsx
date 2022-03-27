@@ -33,11 +33,6 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   costs,
   isConstrainedLayout,
 }) => {
-  const [selectedNeuron, setSelectedNeuron] = useState<{
-    layerIx: number;
-    neuronIx: number;
-  } | null>(null);
-
   return (
     <div className='charts'>
       <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
@@ -49,7 +44,7 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
             inputRange={[0, 1]}
             isConstrainedLayout={isConstrainedLayout}
           />
-          <LayersViz nnCtx={nnCtx} setSelectedNeuron={setSelectedNeuron} />
+          <LayersViz nnCtx={nnCtx} />
         </div>
         <LazyCostsPlot costs={costs} />
       </Suspense>

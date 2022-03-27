@@ -10,3 +10,12 @@
 .coord-picker canvas {
   background-color: #333;
 }
+
+.neuron-response-plot {
+  background-color: #000;
+}
+
+.bottom-vizs {
+  display: flex;
+  flex-direction: row;
+}
