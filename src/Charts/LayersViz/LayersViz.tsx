@@ -7,9 +7,17 @@ import CoordPicker from './CoordPicker';
 import './LayersViz.css';
 import NeuronResponsePlot from './NeuronResponsePlot';
 
-const PADDING_TOP = 20;
-const VIZ_SCALE_MULTIPLIER = 24;
+const dpr = Math.floor(window.devicePixelRatio);
+
+const PADDING_TOP = 20 * dpr;
+const VIZ_SCALE_MULTIPLIER = 24 * dpr;
 const LAYER_SPACING_Y = VIZ_SCALE_MULTIPLIER * 2.5;
+
+export interface LayerSizes {
+  input: number;
+  hidden: number[];
+  output: number;
+}
 
 interface LayersVizProps {
   nnCtx: NNContext;
@@ -50,10 +58,41 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     this.ctx!.putImageData(imageData, 0, PADDING_TOP + layerIx * LAYER_SPACING_Y);
   };
 
+  private renderOverlay() {
+    if (!this.ctx) {
+      return;
+    }
+
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(dpr, dpr);
+    this.ctx.font = `${14}px "PT Sans"`;
+    this.ctx.fillStyle = '#ccc';
+    this.ctx.strokeStyle = '#ccc';
+    this.ctx.textBaseline = 'top';
+    this.ctx.fillText('Inputs', 1, 2 * dpr);
+    for (
+      let hiddenLayerIx = 0;
+      hiddenLayerIx < this.props.nnCtx.definition.hiddenLayers.length;
+      hiddenLayerIx++
+    ) {
+      const y = PADDING_TOP / dpr + ((hiddenLayerIx + 1) * LAYER_SPACING_Y) / dpr - 8 * dpr;
+      this.ctx.fillText(`Hidden Layer ${hiddenLayerIx + 1} Outputs (post-activation)`, 1, y);
+    }
+    this.ctx.fillText(
+      'Network Output',
+      1,
+      PADDING_TOP / dpr +
+        ((this.props.nnCtx.definition.hiddenLayers.length + 1) * LAYER_SPACING_Y) / dpr +
+        -(8 * dpr)
+    );
+  }
+
   private getNeuronAtPosition = (
     x: number,
     y: number
   ): { layerIx: number; neuronIx: number } | null => {
+    x = x * dpr;
+    y = y * dpr;
     if (y < PADDING_TOP) {
       return null;
     }
@@ -123,16 +162,16 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     }
 
     const ctx = this.ctx!;
-    const offsetX = this.state.selectedNeuron.neuronIx * VIZ_SCALE_MULTIPLIER;
+    const offsetX = this.state.selectedNeuron.neuronIx * (VIZ_SCALE_MULTIPLIER / dpr);
     const offsetY =
-      PADDING_TOP +
+      PADDING_TOP / dpr +
       (this.state.selectedNeuron.layerIx === 'init_output'
         ? hiddenLayerCount + 1
         : this.state.selectedNeuron.layerIx) *
-        LAYER_SPACING_Y;
+        (LAYER_SPACING_Y / dpr);
     ctx.strokeStyle = '#00ee00';
     ctx.lineWidth = 3;
-    ctx.strokeRect(offsetX, offsetY, VIZ_SCALE_MULTIPLIER, VIZ_SCALE_MULTIPLIER);
+    ctx.strokeRect(offsetX, offsetY, VIZ_SCALE_MULTIPLIER / dpr, VIZ_SCALE_MULTIPLIER / dpr);
   };
 
   private renderInputWeightLines = (selectedNeuronInputWeights: Uint8Array) => {
@@ -146,9 +185,12 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       throw new Error('Unexpected weights colors length');
     }
 
-    const startX = selectedNeuron.neuronIx * VIZ_SCALE_MULTIPLIER + VIZ_SCALE_MULTIPLIER / 2;
-    const startY = PADDING_TOP + (selectedNeuron.layerIx * LAYER_SPACING_Y + VIZ_SCALE_MULTIPLIER);
-    const endY = startY + LAYER_SPACING_Y - VIZ_SCALE_MULTIPLIER;
+    const startX =
+      selectedNeuron.neuronIx * (VIZ_SCALE_MULTIPLIER / dpr) + VIZ_SCALE_MULTIPLIER / dpr / 2;
+    const startY =
+      PADDING_TOP / dpr +
+      (selectedNeuron.layerIx * (LAYER_SPACING_Y / dpr) + VIZ_SCALE_MULTIPLIER / dpr);
+    const endY = startY + LAYER_SPACING_Y / dpr - VIZ_SCALE_MULTIPLIER / dpr;
 
     ctx.lineWidth = 1.3;
     for (let i = 0; i < selectedNeuronInputWeights.length / 4; i += 1) {
@@ -160,7 +202,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       ctx.beginPath();
       ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
       ctx.moveTo(startX, startY);
-      ctx.lineTo(i * VIZ_SCALE_MULTIPLIER + VIZ_SCALE_MULTIPLIER / 2, endY);
+      ctx.lineTo(i * (VIZ_SCALE_MULTIPLIER / dpr) + VIZ_SCALE_MULTIPLIER / dpr / 2, endY);
       ctx.stroke();
     }
   };
@@ -174,9 +216,15 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     if (!ctx) {
       return;
     }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
 
     this.isRendering = true;
-    const vizData = await this.props.nnCtx.getVizData(this.coord, this.state.selectedNeuron);
+    const vizData = await this.props.nnCtx.getVizData(
+      this.coord,
+      this.state.selectedNeuron,
+      VIZ_SCALE_MULTIPLIER
+    );
     this.isRendering = false;
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -205,6 +253,8 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     if (vizData.selectedNeuronInputWeights) {
       this.renderInputWeightLines(vizData.selectedNeuronInputWeights);
     }
+
+    this.renderOverlay();
   };
 
   forceRender = () => this.maybeRender(true);
@@ -224,9 +274,9 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     <div className='layers-viz' style={this.props.style}>
       <div className='layers-viz-canvas-wrapper'>
         <canvas
-          width={VIZ_SCALE_MULTIPLIER * 128}
-          height={300}
-          style={{ cursor: this.state.cursor }}
+          width={VIZ_SCALE_MULTIPLIER * 128 * dpr}
+          height={300 * dpr}
+          style={{ cursor: this.state.cursor, width: VIZ_SCALE_MULTIPLIER * 128, height: 300 }}
           ref={canvas => {
             if (!canvas) {
               this.ctx = null;
@@ -240,6 +290,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
           onMouseMove={this.handleCanvasMouseMove}
         />
       </div>
+
       <div className='bottom-vizs'>
         <CoordPicker coord={this.coord} onChange={this.forceRender} />
         <NeuronResponsePlot selectedNeuron={this.state.selectedNeuron} nnCtx={this.props.nnCtx} />

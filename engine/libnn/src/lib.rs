@@ -348,12 +348,12 @@ impl DenseLayer {
             for neuron_ix in (chunk_count * 4)..self.errors_scratch.len() {
                 unsafe {
                     if cfg!(debug_assertions) {
-                        self.errors_scratch[neuron_ix] =
-                            output_weights_for_neuron[neuron_ix] * gradient_of_output_neurons[neuron_ix];
+                        self.errors_scratch[neuron_ix] +=
+                            output_weights_for_neuron[neuron_ix] * gradient_of_output_neurons[output_neuron_ix];
                     } else {
                         *self.errors_scratch.get_unchecked_mut(neuron_ix) += *output_weights_for_neuron
                             .get_unchecked(neuron_ix)
-                            * *gradient_of_output_neurons.get_unchecked(neuron_ix);
+                            * *gradient_of_output_neurons.get_unchecked(output_neuron_ix);
                     }
                 }
             }

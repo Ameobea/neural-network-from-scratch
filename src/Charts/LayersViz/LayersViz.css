@@ -1,9 +1,11 @@
 .layers-viz {
   max-width: 800px;
   overflow-x: auto;
+  position: relative;
 }
 
 .layers-viz-canvas-wrapper {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   margin-bottom: 4px;

@@ -101,14 +101,7 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
     ],
   };
 
-  return (
-    <EChartsReactCore
-      style={{ ...style, height: 'max(300px, calc(100vh - 335px))' }}
-      echarts={echarts}
-      option={chartConfig}
-      lazyUpdate
-    />
-  );
+  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} lazyUpdate />;
 };
 
 export default ResponseViz;

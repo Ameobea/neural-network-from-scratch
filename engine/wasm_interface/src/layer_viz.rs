@@ -103,11 +103,7 @@ pub fn colorize_output(val: f32) -> [u8; 4] {
     unsafe { *lut.get_unchecked(lut_ix) }
 }
 
-const VIZ_SCALE_MULTIPLIER: usize = 24;
-
-pub fn build_layer_outputs_buf(output_count: usize) -> Vec<u8> {
-    vec![0; output_count * VIZ_SCALE_MULTIPLIER * VIZ_SCALE_MULTIPLIER * 4]
-}
+pub fn build_layer_outputs_buf(output_count: usize) -> Vec<u8> { vec![0; output_count * 24 * 24 * 4] }
 
 pub struct LayerVizState {
     pub input_layer_buffer: Vec<u8>,
@@ -132,7 +128,9 @@ impl LayerVizState {
         }
     }
 
-    fn populate_layer_outputs_buf(buf: &mut [u8], outputs: &[f32]) {
+    fn populate_layer_outputs_buf(buf: &mut Vec<u8>, outputs: &[f32], viz_scale_multiplier: usize) {
+        buf.resize(outputs.len() * viz_scale_multiplier * viz_scale_multiplier * 4, 0);
+
         let buf_ptr = buf.as_mut_ptr() as *mut u8 as *mut u32;
 
         for (i, output) in outputs.iter().enumerate() {
@@ -142,11 +140,11 @@ impl LayerVizState {
             }
             let color: u32 = unsafe { std::mem::transmute(color) };
 
-            for y in 0..VIZ_SCALE_MULTIPLIER {
-                for x in 0..VIZ_SCALE_MULTIPLIER {
+            for y in 0..viz_scale_multiplier {
+                for x in 0..viz_scale_multiplier {
                     unsafe {
                         std::ptr::write(
-                            buf_ptr.add((outputs.len() * y * VIZ_SCALE_MULTIPLIER) + i * VIZ_SCALE_MULTIPLIER + x),
+                            buf_ptr.add((outputs.len() * y * viz_scale_multiplier) + i * viz_scale_multiplier + x),
                             color,
                         )
                     }
@@ -155,12 +153,20 @@ impl LayerVizState {
         }
     }
 
-    pub fn update(&mut self, network: &Network, example: &[f32]) {
-        Self::populate_layer_outputs_buf(&mut self.input_layer_buffer, example);
+    pub fn update(&mut self, network: &Network, example: &[f32], viz_scale_multiplier: usize) {
+        Self::populate_layer_outputs_buf(&mut self.input_layer_buffer, example, viz_scale_multiplier);
         for (layer_ix, hidden_layer) in network.hidden_layers.iter().enumerate() {
-            Self::populate_layer_outputs_buf(&mut self.hidden_layer_buffers[layer_ix], &hidden_layer.outputs);
+            Self::populate_layer_outputs_buf(
+                &mut self.hidden_layer_buffers[layer_ix],
+                &hidden_layer.outputs,
+                viz_scale_multiplier,
+            );
         }
-        Self::populate_layer_outputs_buf(&mut self.output_layer_buffer, &network.outputs.outputs);
+        Self::populate_layer_outputs_buf(
+            &mut self.output_layer_buffer,
+            &network.outputs.outputs,
+            viz_scale_multiplier,
+        );
     }
 
     pub fn build_neuron_response_viz(network: &mut Network, layer_ix: usize, neuron_ix: usize, size: usize) -> Vec<u8> {

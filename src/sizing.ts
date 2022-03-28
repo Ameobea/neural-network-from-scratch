@@ -20,7 +20,7 @@ const getMobileStyles = (): AppStyles => {
 
   const runtimeControls: React.CSSProperties = {};
 
-  const responseViz: React.CSSProperties = {};
+  const responseViz: React.CSSProperties = { height: 'max(300px, calc(100vh - 335px))' };
 
   const layersViz: React.CSSProperties = {};
 
@@ -60,12 +60,12 @@ const getDesktopStyles = (windowWidth: number): AppStyles => {
 
   const responseViz: React.CSSProperties = {
     width: showSideBySizeResponseViz ? Math.floor(runtimeControlsWidth / 2) : runtimeControlsWidth,
-    height: '100%',
+    height: 'max(300px, calc(100vh - 335px))',
   };
 
   const layersViz: React.CSSProperties = {
     width: showSideBySizeResponseViz ? Math.floor(runtimeControlsWidth / 2) : runtimeControlsWidth,
-    height: '100%',
+    height: 'max(300px, calc(100vh - 335px))',
   };
 
   return {

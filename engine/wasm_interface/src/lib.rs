@@ -299,10 +299,10 @@ pub fn predict_batch(
 }
 
 #[wasm_bindgen]
-pub fn update_viz(ctx: *mut NNCtx, example: &[Weight]) {
+pub fn update_viz(ctx: *mut NNCtx, example: &[Weight], viz_scale_multiplier: usize) {
     let ctx = unsafe { &mut (*ctx) };
     ctx.network.forward_propagate(example);
-    ctx.viz_state.update(&ctx.network, example);
+    ctx.viz_state.update(&ctx.network, example, viz_scale_multiplier);
 }
 
 #[wasm_bindgen]

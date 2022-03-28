@@ -148,13 +148,14 @@ export class NNWorkerCtx {
 
   public getVizData(
     example: Float32Array,
-    selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null
+    selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null,
+    vizScaleMultiplier: number
   ) {
     if (!this.ctxPtr) {
       return null;
     }
 
-    this.engine.update_viz(this.ctxPtr, example);
+    this.engine.update_viz(this.ctxPtr, example, vizScaleMultiplier);
 
     const hiddenLayerColors = [];
     for (let i = 0; i < this.hiddenLayerCount; i++) {
