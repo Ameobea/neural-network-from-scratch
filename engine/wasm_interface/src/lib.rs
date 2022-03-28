@@ -6,7 +6,7 @@
     thread_local
 )]
 
-use layer_viz::{initialize_colorizer_luts, LayerVizState};
+use layer_viz::{colorize_output, initialize_colorizer_luts, LayerVizState};
 use libnn::{
     ActivationFunction, CostFunction, DenseLayer, Network, OutputLayer, Weight, AMEO, GAUSSIAN, GCU, IDENTITY,
     LEAKY_RELU, MEAN_SQUARED_ERROR, RELU, SIGMOID, SWISH, TANH,
@@ -306,25 +306,51 @@ pub fn update_viz(ctx: *mut NNCtx, example: &[Weight]) {
 }
 
 #[wasm_bindgen]
-pub fn get_viz_input_layer_colors(ctx: *mut NNCtx) -> Vec<u8> {
-    let ctx = unsafe { &mut (*ctx) };
+pub fn get_viz_input_layer_colors(ctx: *const NNCtx) -> Vec<u8> {
+    let ctx = unsafe { &(*ctx) };
     ctx.viz_state.input_layer_buffer.clone()
 }
 
 #[wasm_bindgen]
-pub fn get_viz_hidden_layer_colors(ctx: *mut NNCtx, hidden_layer_ix: usize) -> Vec<u8> {
-    let ctx = unsafe { &mut (*ctx) };
+pub fn get_viz_hidden_layer_colors(ctx: *const NNCtx, hidden_layer_ix: usize) -> Vec<u8> {
+    let ctx = unsafe { &(*ctx) };
     ctx.viz_state.hidden_layer_buffers[hidden_layer_ix].clone()
 }
 
 #[wasm_bindgen]
-pub fn get_viz_output_layer_colors(ctx: *mut NNCtx) -> Vec<u8> {
-    let ctx = unsafe { &mut (*ctx) };
+pub fn get_viz_output_layer_colors(ctx: *const NNCtx) -> Vec<u8> {
+    let ctx = unsafe { &(*ctx) };
     ctx.viz_state.output_layer_buffer.clone()
 }
 
 #[wasm_bindgen]
-pub fn build_neuron_response_viz(ctx: *mut NNCtx, layer_ix: usize, neuron_ix: usize, size: usize) -> Vec<u8> {
+pub fn get_input_weights_for_next_layer(ctx: *const NNCtx, layer_ix: isize, neuron_ix: usize) -> Vec<u8> {
+    let ctx = unsafe { &(*ctx) };
+    let next_layer_weights = match layer_ix {
+        0 => &ctx.network.hidden_layers[0].weights,
+        n if n > 0 && n < ctx.network.hidden_layers.len() as isize => &ctx.network.hidden_layers[n as usize].weights,
+        n if n == ctx.network.hidden_layers.len() as isize => &ctx.network.outputs.weights,
+        _ => return Vec::new(),
+    };
+
+    next_layer_weights
+        .iter()
+        .flat_map(|neuron_weights| {
+            let weight = neuron_weights.get(neuron_ix).copied().unwrap_or_default();
+            let color = colorize_output(weight);
+            color.into_iter()
+        })
+        .collect()
+}
+
+#[wasm_bindgen]
+pub fn build_neuron_response_viz(ctx: *mut NNCtx, layer_ix: isize, neuron_ix: usize, size: usize) -> Vec<u8> {
     let ctx = unsafe { &mut (*ctx) };
+    // A negative layer_ix means the output layer.
+    let layer_ix = if layer_ix < 0 {
+        ctx.network.hidden_layers.len() + 1
+    } else {
+        layer_ix as usize
+    };
     LayerVizState::build_neuron_response_viz(&mut ctx.network, layer_ix, neuron_ix, size)
 }

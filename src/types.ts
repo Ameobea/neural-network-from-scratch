@@ -3,13 +3,13 @@ export const buildDefaultNetworkDefinition = (): NeuralNetworkDefinition => ({
   hiddenLayers: [
     {
       neuronCount: 64,
-      activationFunctionType: ActivationFunctionType.ReLU,
+      activationFunctionType: ActivationFunctionType.LeakyReLU,
       initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
       initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
     },
     {
       neuronCount: 32,
-      activationFunctionType: ActivationFunctionType.ReLU,
+      activationFunctionType: ActivationFunctionType.LeakyReLU,
       initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
       initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
     },

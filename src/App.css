@@ -47,19 +47,6 @@ body {
   display: flex;
 }
 
-@media screen and (min-width: 850px) {
-  .app .content {
-    padding: 19px;
-    flex-direction: row;
-  }
-}
-
-@media screen and (max-width: 849px) {
-  .app .content {
-    flex-direction: column;
-  }
-}
-
 .control-panel * {
   color: #ccc !important;
 }

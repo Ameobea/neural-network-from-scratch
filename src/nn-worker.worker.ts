@@ -146,7 +146,10 @@ export class NNWorkerCtx {
     return this.engine.train_many_examples(this.ctxPtr, examples, expecteds, learningRate);
   }
 
-  public getVizData(example: Float32Array) {
+  public getVizData(
+    example: Float32Array,
+    selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null
+  ) {
     if (!this.ctxPtr) {
       return null;
     }
@@ -159,12 +162,25 @@ export class NNWorkerCtx {
     }
     const inputLayerColors = this.engine.get_viz_input_layer_colors(this.ctxPtr);
     const outputLayerColors = this.engine.get_viz_output_layer_colors(this.ctxPtr);
+    const selectedNeuronInputWeights = selectedNeuron
+      ? this.engine.get_input_weights_for_next_layer(
+          this.ctxPtr,
+          selectedNeuron.layerIx === 'init_output' ? -1 : selectedNeuron.layerIx,
+          selectedNeuron.neuronIx
+        )
+      : null;
 
-    return Comlink.transfer({ hiddenLayerColors, inputLayerColors, outputLayerColors }, [
-      ...hiddenLayerColors.map(c => c.buffer),
-      outputLayerColors.buffer,
-      inputLayerColors.buffer,
-    ]);
+    return Comlink.transfer(
+      {
+        hiddenLayerColors,
+        inputLayerColors,
+        outputLayerColors,
+        selectedNeuronInputWeights: selectedNeuronInputWeights?.length
+          ? selectedNeuronInputWeights
+          : null,
+      },
+      [...hiddenLayerColors.map(c => c.buffer), outputLayerColors.buffer, inputLayerColors.buffer]
+    );
   }
 
   public getNeuronResponse(layerIx: number, neuronIx: number, size: number) {
@@ -173,6 +189,9 @@ export class NNWorkerCtx {
     }
 
     const response = this.engine.build_neuron_response_viz(this.ctxPtr, layerIx, neuronIx, size);
+    if (response.length === 0) {
+      return null;
+    }
     return Comlink.transfer(response, [response.buffer]);
   }
 }

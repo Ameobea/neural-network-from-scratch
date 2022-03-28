@@ -10,19 +10,15 @@ interface ResponseVizProps {
   inputRange: [number, number];
   sourceFn: (inputs: Float32Array) => Float32Array;
   isConstrainedLayout: boolean;
+  style: React.CSSProperties;
 }
-
-const style = {
-  height: 'max(300px, calc(100vh - 335px))',
-  maxWidth: '800px',
-  width: '50%',
-};
 
 const ResponseViz: React.FC<ResponseVizProps> = ({
   data,
   inputRange,
   sourceFn,
   isConstrainedLayout,
+  style,
 }) => {
   const chartConfig = {
     backgroundColor: '#101010',
@@ -105,7 +101,14 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
     ],
   };
 
-  return <EChartsReactCore style={style} echarts={echarts} option={chartConfig} lazyUpdate />;
+  return (
+    <EChartsReactCore
+      style={{ ...style, height: 'max(300px, calc(100vh - 335px))' }}
+      echarts={echarts}
+      option={chartConfig}
+      lazyUpdate
+    />
+  );
 };
 
 export default ResponseViz;

@@ -93,7 +93,7 @@ fn clamp(min: f32, max: f32, val: f32) -> f32 {
     }
 }
 
-fn colorize_output(val: f32) -> [u8; 4] {
+pub fn colorize_output(val: f32) -> [u8; 4] {
     let val = clamp(COLORIZER_LUT_RANGE[0], COLORIZER_LUT_RANGE[1], val);
     // Scale val from [-2.5, 2.5] to [0, COLORIZER_LUT_SIZE]
     let lut_ix = ((val + 2.5) * (COLORIZER_LUT_SIZE - 1) as f32 / 5.) as usize;
@@ -103,7 +103,7 @@ fn colorize_output(val: f32) -> [u8; 4] {
     unsafe { *lut.get_unchecked(lut_ix) }
 }
 
-const VIZ_SCALE_MULTIPLIER: usize = 16;
+const VIZ_SCALE_MULTIPLIER: usize = 24;
 
 pub fn build_layer_outputs_buf(output_count: usize) -> Vec<u8> {
     vec![0; output_count * VIZ_SCALE_MULTIPLIER * VIZ_SCALE_MULTIPLIER * 4]
@@ -164,20 +164,28 @@ impl LayerVizState {
     }
 
     pub fn build_neuron_response_viz(network: &mut Network, layer_ix: usize, neuron_ix: usize, size: usize) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(size * size * 4);
+        let mut example = [0., 0.];
+        let neuron_output = match layer_ix {
+            0 => example.get(neuron_ix),
+            layer_ix if layer_ix <= network.hidden_layers.len() => network
+                .hidden_layers
+                .get(layer_ix - 1)
+                .and_then(|neuron| neuron.outputs.get(neuron_ix)),
+            _ => network.outputs.outputs.get(neuron_ix),
+        };
+        let neuron_output = match neuron_output {
+            Some(output) => output as *const f32,
+            None => return Vec::new(),
+        };
 
+        let mut buf = Vec::with_capacity(size * size * 4);
         for y in (0..size).rev() {
             let y = y as f32 / (size - 1) as f32;
             for x in 0..size {
                 let x = x as f32 / (size - 1) as f32;
-                let example = [x, y];
+                example = [x, y];
                 network.forward_propagate(&example);
-                let neuron_output = match layer_ix {
-                    0 => example[neuron_ix],
-                    layer_ix if layer_ix <= network.hidden_layers.len() =>
-                        network.hidden_layers[layer_ix - 1].outputs[neuron_ix],
-                    _ => network.outputs.outputs[neuron_ix],
-                };
+                let neuron_output = unsafe { *neuron_output };
                 let color = colorize_output(neuron_output);
                 buf.extend_from_slice(&color);
             }

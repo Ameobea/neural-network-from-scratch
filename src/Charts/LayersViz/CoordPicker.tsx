@@ -7,11 +7,7 @@ class CoordPickerEngine {
   private canvasSize: { width: number; height: number } = { width: 0, height: 0 };
   private onChange: () => void;
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    coord: Float32Array,
-    onChange: () => void
-  ) {
+  constructor(canvas: HTMLCanvasElement, coord: Float32Array, onChange: () => void) {
     canvas.onmousedown = this.handleMouseDown;
     canvas.onmouseup = this.handleMouseUp;
     this.canvas = canvas;
@@ -26,7 +22,7 @@ class CoordPickerEngine {
   private render() {
     const { ctx } = this;
     ctx.clearRect(0, 0, this.canvasSize.width, this.canvasSize.height);
-    ctx.fillStyle = '#ff0000';
+    ctx.fillStyle = '#ddffdd';
     ctx.beginPath();
     ctx.arc(
       this.coord[0] * this.canvasSize.width,
@@ -38,11 +34,17 @@ class CoordPickerEngine {
     ctx.fill();
   }
 
+  private getCoordFromMouseEvent(e: MouseEvent) {
+    const { canvas } = this;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = 1 - (e.clientY - rect.top) / rect.height;
+    return [x, y];
+  }
+
   private handleMouseDown = (e: MouseEvent) => {
-    const x = e.clientX - this.canvas.offsetLeft;
-    const y = e.clientY - this.canvas.offsetTop;
-    this.coord[0] = x / this.canvasSize.width;
-    this.coord[1] = 1 - y / this.canvasSize.height;
+    const coord = this.getCoordFromMouseEvent(e);
+    this.coord.set(coord);
     this.render();
     this.onChange();
 
@@ -54,10 +56,8 @@ class CoordPickerEngine {
   };
 
   private handleMouseMove = (e: MouseEvent) => {
-    const x = e.clientX - this.canvas.offsetLeft;
-    const y = e.clientY - this.canvas.offsetTop;
-    this.coord[0] = x / this.canvasSize.width;
-    this.coord[1] = 1 - y / this.canvasSize.height;
+    const coord = this.getCoordFromMouseEvent(e);
+    this.coord.set(coord);
     this.render();
     this.onChange();
   };

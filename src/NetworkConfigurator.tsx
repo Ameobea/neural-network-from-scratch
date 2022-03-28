@@ -23,6 +23,7 @@ interface NetworkConfiguratorProps {
   isConstrainedLayout: boolean;
   isExpanded: boolean;
   setIsExpanded: (isExpanded: boolean) => void;
+  style?: React.CSSProperties;
 }
 
 const buildValueInitializerOptions = () => ({
@@ -232,6 +233,7 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({
   isConstrainedLayout,
   isExpanded,
   setIsExpanded,
+  style,
 }) => {
   const [definition, setDefinitionInner] = useState<NeuralNetworkDefinition>(
     buildDefaultNetworkDefinition()
@@ -247,7 +249,10 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({
   const width = viewportWidth < 850 ? viewportWidth : 400;
 
   return (
-    <div className={`network-configurator${isConstrainedLayout ? ' constrained-layout' : ''}`}>
+    <div
+      className={`network-configurator${isConstrainedLayout ? ' constrained-layout' : ''}`}
+      style={style}
+    >
       {isConstrainedLayout ? null : (
         <div
           style={{

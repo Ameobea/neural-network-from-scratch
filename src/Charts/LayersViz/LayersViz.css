@@ -3,12 +3,24 @@
   overflow-x: auto;
 }
 
+.layers-viz-canvas-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 4px;
+}
+
 .layers-viz canvas {
   background-color: #000;
 }
 
+.coord-picker {
+  position: absolute;
+  z-index: 2;
+}
+
 .coord-picker canvas {
-  background-color: #333;
+  background-color: transparent;
+  z-index: 2;
 }
 
 .neuron-response-plot {
@@ -16,6 +28,5 @@
 }
 
 .bottom-vizs {
-  display: flex;
-  flex-direction: row;
+  position: relative;
 }

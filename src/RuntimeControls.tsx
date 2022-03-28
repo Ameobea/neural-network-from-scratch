@@ -2,13 +2,15 @@ import React, { Suspense, useCallback, useMemo, useState, useReducer } from 'rea
 import ControlPanel from 'react-control-panel';
 import { UnreachableException, useWindowSize } from 'ameo-utils';
 
-import { NNContext } from './NNContext';
+import type { NNContext } from './NNContext';
 import type { ResponseMatrix } from './Charts/ResponseViz';
 import './RuntimeControls.css';
 import Loading from './Loading';
 import { getSentry } from './sentry';
 import ExpandCollapseButton from './Components/ExpandCollapseButton';
 import LayersViz from './Charts/LayersViz/LayersViz';
+import { updateViz } from './Charts/vizControls';
+import type { AppStyles } from './sizing';
 
 const Charts = import('./Charts');
 
@@ -20,10 +22,37 @@ interface OutputData {
   costs: number[];
 }
 
+interface VizPickerProps {
+  selectedViz: 'response' | 'layers';
+  setSelectedViz: (selectedViz: 'response' | 'layers') => void;
+}
+
+const VizPicker: React.FC<VizPickerProps> = ({ selectedViz, setSelectedViz }) => (
+  <div className='viz-picker'>
+    <div
+      role='tab'
+      data-selected={selectedViz === 'response'}
+      className='viz-picker-tab'
+      onClick={() => setSelectedViz('response')}
+    >
+      Network Response Plot
+    </div>
+    <div
+      role='tab'
+      data-selected={selectedViz === 'layers'}
+      className='viz-picker-tab'
+      onClick={() => setSelectedViz('layers')}
+    >
+      Layer Outputs Viz
+    </div>
+  </div>
+);
+
 interface OutputDataDisplayProps extends OutputData {
   sourceFn: (inputs: Float32Array) => Float32Array;
   isConstrainedLayout: boolean;
   nnCtx: NNContext;
+  appStyles: AppStyles;
 }
 
 const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
@@ -32,22 +61,47 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   sourceFn,
   costs,
   isConstrainedLayout,
+  appStyles,
 }) => {
+  const [selectedViz, setSelectedViz] = useState<'response' | 'layers'>('response');
+
+  if (appStyles.showSideBySizeResponseViz) {
+    return (
+      <div className='charts'>
+        <div style={{ display: 'flex', flexDirection: 'row' }}>
+          <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
+            <LazyResponseViz
+              data={responseMatrix}
+              sourceFn={sourceFn}
+              inputRange={[0, 1]}
+              isConstrainedLayout={isConstrainedLayout}
+              style={appStyles.responseViz}
+            />
+          </Suspense>
+          <LayersViz nnCtx={nnCtx} style={appStyles.layersViz} />
+        </div>
+        <LazyCostsPlot costs={costs} />
+      </div>
+    );
+  }
+
   return (
     <div className='charts'>
-      <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
-        {/* TODO: Responsive styling */}
-        <div style={{ display: 'flex', flexDirection: 'row' }}>
+      <VizPicker selectedViz={selectedViz} setSelectedViz={setSelectedViz} />
+      {selectedViz === 'response' ? (
+        <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
           <LazyResponseViz
             data={responseMatrix}
             sourceFn={sourceFn}
             inputRange={[0, 1]}
             isConstrainedLayout={isConstrainedLayout}
+            style={appStyles.responseViz}
           />
-          <LayersViz nnCtx={nnCtx} />
-        </div>
-        <LazyCostsPlot costs={costs} />
-      </Suspense>
+        </Suspense>
+      ) : (
+        <LayersViz nnCtx={nnCtx} style={appStyles.layersViz} />
+      )}
+      <LazyCostsPlot costs={costs} />
     </div>
   );
 };
@@ -57,6 +111,7 @@ interface RuntimeControlsProps {
   isConstrainedLayout: boolean;
   isExpanded: boolean;
   setExpanded: (isExpanded: boolean) => void;
+  appStyles: AppStyles;
 }
 
 enum SourceFnType {
@@ -172,6 +227,7 @@ const buildSettings = (
       getSentry()?.captureMessage('Reset button clicked');
       setOutputData({ responseMatrix: [], costs: null });
       await nnCtx.uninit();
+      updateViz();
     },
   },
   {
@@ -186,6 +242,7 @@ const buildSettings = (
       if (!(await nnCtx.getIsInitialized())) {
         await nnCtx.init(nnCtx.definition);
       }
+      updateViz();
 
       getSentry()?.captureMessage('Train 1mm examples button clicked');
       nnCtx.isRunning = true;
@@ -194,14 +251,17 @@ const buildSettings = (
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
       setOutputData({ responseMatrix, costs });
 
-      for (let i = 0; i < 20; i++) {
-        costs = await nnCtx.trainWithSourceFunction(sourceFn, 50_000, [0, 1]);
+      for (let i = 0; i < 40; i++) {
+        costs = await nnCtx.trainWithSourceFunction(sourceFn, 25_000, [0, 1]);
 
-        const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-        setOutputData({ responseMatrix, costs });
+        if (i % 3 === 0 || i === 39) {
+          const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
+          setOutputData({ responseMatrix, costs });
+        }
       }
 
       nnCtx.isRunning = false;
+      updateViz();
     },
   },
   {
@@ -216,6 +276,7 @@ const buildSettings = (
         await nnCtx.init(nnCtx.definition);
         setOutputData({ responseMatrix: [], costs: null });
       }
+      updateViz();
 
       getSentry()?.captureMessage('Train 1k button clicked');
       nnCtx.isRunning = true;
@@ -224,6 +285,7 @@ const buildSettings = (
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
       setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
+      updateViz();
     },
   },
   {
@@ -237,6 +299,7 @@ const buildSettings = (
       if (!(await nnCtx.getIsInitialized())) {
         await nnCtx.init(nnCtx.definition);
       }
+      updateViz();
 
       getSentry()?.captureMessage('Train 1 example button clicked');
       nnCtx.isRunning = true;
@@ -245,6 +308,7 @@ const buildSettings = (
       const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
       setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
+      updateViz();
     },
   },
 ];
@@ -264,6 +328,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
   isConstrainedLayout,
   isExpanded,
   setExpanded,
+  appStyles,
 }) => {
   const [outputData, dispatchOutputData] = useReducer(outputDataReducer, {
     responseMatrix: [],
@@ -283,7 +348,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
 
   if (!isExpanded && isConstrainedLayout) {
     return (
-      <div className='runtime-controls'>
+      <div className='runtime-controls' style={appStyles.runtimeControls}>
         <div className='collapsed-runtime-controls'>
           <ExpandCollapseButton
             isExpanded={false}
@@ -300,6 +365,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
           nnCtx={nnCtx}
           sourceFn={sourceFn}
           isConstrainedLayout={isConstrainedLayout}
+          appStyles={appStyles}
           {...outputData}
         />
       </div>
@@ -307,7 +373,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
   }
 
   return (
-    <div className='runtime-controls'>
+    <div className='runtime-controls' style={appStyles.runtimeControls}>
       <ControlPanel
         style={{ width: '100%' }}
         settings={settings}
@@ -317,6 +383,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
         nnCtx={nnCtx}
         sourceFn={sourceFn}
         isConstrainedLayout={isConstrainedLayout}
+        appStyles={appStyles}
         {...outputData}
       />
     </div>

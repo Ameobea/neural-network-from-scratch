@@ -4,14 +4,41 @@
   flex-direction: column;
 }
 
-@media screen and (min-width: 850px) {
-  .runtime-controls {
-    margin-left: 20px;
-  }
-}
-
 .collapsed-runtime-controls {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+}
+
+.collapsed-runtime-controls .control-panel button {
+  padding: 1px 4px 0px 4px !important;
+  background-color: #5e223b !important;
+}
+
+.viz-picker {
+  display: flex;
+  flex-direction: row;
+}
+
+.viz-picker .viz-picker-tab {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 5px 6px;
+  margin-left: 1px;
+  margin-right: 1px;
+  background-color: #333;
+  color: #ccc;
+}
+
+.viz-picker .viz-picker-tab[data-selected='false'] {
+  cursor: pointer;
+}
+
+.viz-picker .viz-picker-tab[data-selected='true'] {
+  cursor: default;
+  background-color: #443333;
 }
