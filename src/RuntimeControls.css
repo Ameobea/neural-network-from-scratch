@@ -12,6 +12,11 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  cursor: pointer !important;
+}
+
+.collapsed-runtime-controls * {
+  cursor: pointer !important;
 }
 
 .collapsed-runtime-controls .control-panel button {

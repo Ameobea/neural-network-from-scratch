@@ -53,6 +53,7 @@ interface OutputDataDisplayProps extends OutputData {
   isConstrainedLayout: boolean;
   nnCtx: NNContext;
   appStyles: AppStyles;
+  expandRuntimeControls: () => void;
 }
 
 const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
@@ -62,6 +63,7 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   costs,
   isConstrainedLayout,
   appStyles,
+  expandRuntimeControls,
 }) => {
   const [selectedViz, setSelectedViz] = useState<'response' | 'layers'>('response');
 
@@ -78,7 +80,7 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
               style={appStyles.responseViz}
             />
           </Suspense>
-          <LayersViz nnCtx={nnCtx} style={appStyles.layersViz} />
+          <LayersViz nnCtx={nnCtx} appStyles={appStyles} />
         </div>
         <LazyCostsPlot costs={costs} />
       </div>
@@ -87,7 +89,15 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
 
   return (
     <div className='charts'>
-      <VizPicker selectedViz={selectedViz} setSelectedViz={setSelectedViz} />
+      <VizPicker
+        selectedViz={selectedViz}
+        setSelectedViz={selectedViz => {
+          if (selectedViz === 'layers') {
+            expandRuntimeControls();
+          }
+          setSelectedViz(selectedViz);
+        }}
+      />
       {selectedViz === 'response' ? (
         <Suspense fallback={<Loading style={{ textAlign: 'center', height: 514 }} />}>
           <LazyResponseViz
@@ -99,9 +109,9 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
           />
         </Suspense>
       ) : (
-        <LayersViz nnCtx={nnCtx} style={appStyles.layersViz} />
+        <LayersViz nnCtx={nnCtx} appStyles={appStyles} />
       )}
-      <LazyCostsPlot costs={costs} />
+      {selectedViz === 'response' ? <LazyCostsPlot costs={costs} /> : null}
     </div>
   );
 };
@@ -194,7 +204,7 @@ const buildSettings = (
   sourceFn: (inputs: Float32Array) => Float32Array,
   setOutputData: (newOutputData: {
     responseMatrix: ResponseMatrix;
-    costs: Float32Array | null;
+    costs: Float32Array | number[] | null;
   }) => void,
   viewportWidth: number,
   onTrain1mmStart: () => void
@@ -248,19 +258,23 @@ const buildSettings = (
         `Train ${viewportWidth < 850 ? '250k' : '1mm'} examples button clicked`
       );
       nnCtx.isRunning = true;
-      let costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
+      const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
       const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
       setOutputData({ responseMatrix, costs });
 
       const batchSize = 25_000;
       const iters = viewportWidth < 850 ? 10 : 40;
+      const batchCosts: Float32Array[] = [];
       for (let i = 0; i < iters; i++) {
-        costs = await nnCtx.trainWithSourceFunction(sourceFn, batchSize, [0, 1]);
+        const costs = await nnCtx.trainWithSourceFunction(sourceFn, batchSize, [0, 1]);
+        batchCosts.push(costs);
 
         if (i % 3 === 0 || i === iters - 1) {
           const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
-          setTimeout(() => setOutputData({ responseMatrix, costs }));
+          const allCosts = batchCosts.reduce((acc, costs) => [...acc, ...costs], [] as number[]);
+          batchCosts.length = 0;
+          setTimeout(() => setOutputData({ responseMatrix, costs: allCosts }));
         }
       }
 
@@ -372,6 +386,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
           sourceFn={sourceFn}
           isConstrainedLayout={isConstrainedLayout}
           appStyles={appStyles}
+          expandRuntimeControls={() => setExpanded(true)}
           {...outputData}
         />
       </div>
@@ -390,6 +405,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
         sourceFn={sourceFn}
         isConstrainedLayout={isConstrainedLayout}
         appStyles={appStyles}
+        expandRuntimeControls={() => setExpanded(true)}
         {...outputData}
       />
     </div>

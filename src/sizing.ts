@@ -4,6 +4,11 @@ export const MOBILE_CUTOFF_PX = 850;
 
 export const RESPONSE_VIZ_RESOLUTION = (window.innerWidth || 0) >= MOBILE_CUTOFF_PX ? 75 : 50;
 
+export interface BottomVizsStyles {
+  neuronResponsePlot: React.CSSProperties;
+  coordPicker: React.CSSProperties;
+}
+
 export interface AppStyles {
   content: React.CSSProperties;
   networkConfigurator: React.CSSProperties;
@@ -11,9 +16,25 @@ export interface AppStyles {
   responseViz: React.CSSProperties;
   layersViz: React.CSSProperties;
   showSideBySizeResponseViz: boolean;
+  bottomVizs: BottomVizsStyles;
 }
 
-const getMobileStyles = (): AppStyles => {
+const buildBottomVizsStyles = (layersVizWidth: number): BottomVizsStyles => ({
+  neuronResponsePlot: {
+    width: 250,
+    height: 250,
+    position: 'absolute',
+    marginLeft: (layersVizWidth - 250) / 2,
+    marginTop: 0,
+  },
+  coordPicker: {
+    position: 'absolute',
+    left: (layersVizWidth - 250) / 2,
+    top: 0,
+  },
+});
+
+const getMobileStyles = (windowWidth: number): AppStyles => {
   const content: React.CSSProperties = {
     flexDirection: 'column',
   };
@@ -33,6 +54,7 @@ const getMobileStyles = (): AppStyles => {
     responseViz,
     layersViz,
     showSideBySizeResponseViz: false,
+    bottomVizs: buildBottomVizsStyles(windowWidth),
   };
 };
 
@@ -65,8 +87,11 @@ const getDesktopStyles = (windowWidth: number): AppStyles => {
     height: 'max(300px, calc(100vh - 335px))',
   };
 
+  const layersVizWidth = showSideBySizeResponseViz
+    ? Math.floor(runtimeControlsWidth / 2)
+    : runtimeControlsWidth;
   const layersViz: React.CSSProperties = {
-    width: showSideBySizeResponseViz ? Math.floor(runtimeControlsWidth / 2) : runtimeControlsWidth,
+    width: layersVizWidth,
     height: 'max(300px, calc(100vh - 335px))',
   };
 
@@ -77,11 +102,12 @@ const getDesktopStyles = (windowWidth: number): AppStyles => {
     responseViz,
     layersViz,
     showSideBySizeResponseViz,
+    bottomVizs: buildBottomVizsStyles(layersVizWidth),
   };
 };
 
 export const getAppStyles = (width: number, height: number): AppStyles => {
   const isMobile = width < MOBILE_CUTOFF_PX;
 
-  return isMobile ? getMobileStyles() : getDesktopStyles(width);
+  return isMobile ? getMobileStyles(width) : getDesktopStyles(width);
 };

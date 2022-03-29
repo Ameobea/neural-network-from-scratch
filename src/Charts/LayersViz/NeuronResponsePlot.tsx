@@ -84,6 +84,7 @@ class NeuronResponsePlotEngine {
 interface NeuronResponsePlotProps {
   nnCtx: NNContext;
   selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null;
+  style: React.CSSProperties;
 }
 
 class NeuronResponsePlot extends React.Component<NeuronResponsePlotProps> {
@@ -111,6 +112,7 @@ class NeuronResponsePlot extends React.Component<NeuronResponsePlotProps> {
 
   public render = () => (
     <canvas
+      style={this.props.style}
       className='neuron-response-plot'
       width={NEURON_RESPONSE_PLOT_SIZE}
       height={NEURON_RESPONSE_PLOT_SIZE}

@@ -1,27 +1,30 @@
-export const buildDefaultNetworkDefinition = (isMobile: boolean): NeuralNetworkDefinition => ({
-  inputLayer: { neuronCount: 2 },
-  hiddenLayers: [
-    {
-      neuronCount: isMobile ? 40 : 64,
-      activationFunctionType: ActivationFunctionType.LeakyReLU,
-      initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
-      initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
-    },
-    {
-      neuronCount: isMobile ? 20 : 32,
-      activationFunctionType: ActivationFunctionType.LeakyReLU,
-      initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
-      initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
-    },
-  ],
-  outputLayer: {
-    neuronCount: 1,
-    activationFunctionType: ActivationFunctionType.Sigmoid,
-    costFunctionType: CostFunctionType.MeanSquaredError,
-    initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
-    learningRate: 0.15,
-  },
-});
+export const buildDefaultNetworkDefinition = (isMobile: boolean): NeuralNetworkDefinition =>
+  typeof window !== 'undefined' && (window as any).defaultDefinition
+    ? (window as any).defaultDefinition
+    : {
+        inputLayer: { neuronCount: 2 },
+        hiddenLayers: [
+          {
+            neuronCount: isMobile ? 40 : 64,
+            activationFunctionType: ActivationFunctionType.LeakyReLU,
+            initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+            initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+          },
+          {
+            neuronCount: isMobile ? 20 : 32,
+            activationFunctionType: ActivationFunctionType.LeakyReLU,
+            initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+            initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
+          },
+        ],
+        outputLayer: {
+          neuronCount: 1,
+          activationFunctionType: ActivationFunctionType.Sigmoid,
+          costFunctionType: CostFunctionType.MeanSquaredError,
+          initWeightsFnDefinition: { type: 'continuousUniformDistribution', min: -1, max: 1 },
+          learningRate: 0.15,
+        },
+      };
 
 export const buildWeightInitParts = (def: InitWeightsFnDefinition) => {
   switch (def.type) {

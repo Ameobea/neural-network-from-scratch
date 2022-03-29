@@ -69,7 +69,6 @@ export class NNWorkerCtx {
   }
 
   public init(def: NeuralNetworkDefinition | null) {
-    console.log('Setting definition', def);
     if (def) {
       this.definition = def;
       this.buildCtx(def);

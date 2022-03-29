@@ -31,4 +31,19 @@
 
 .bottom-vizs {
   position: relative;
+  height: 270px;
+}
+
+.bottom-vizs .header {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  max-height: 20px;
+}
+
+.bottom-vizs .header h3 {
+  padding-bottom: 4px;
+  font-size: 14px;
+  margin: 0;
+  user-select: none;
 }

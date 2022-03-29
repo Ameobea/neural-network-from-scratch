@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { NNContext } from 'src/NNContext';
+import { AppStyles } from 'src/sizing';
 import { deregisterVizUpdateCB, registerVizUpdateCB } from '../vizControls';
 import CoordPicker from './CoordPicker';
 
@@ -21,13 +22,14 @@ export interface LayerSizes {
 
 interface LayersVizProps {
   nnCtx: NNContext;
-  style?: React.CSSProperties;
+  appStyles: AppStyles;
 }
 
 interface LayersVizState {
   cursor: string;
   selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null;
   hiddenLayerCount: number;
+  maxHiddenLayerSize: number;
 }
 
 class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
@@ -48,9 +50,8 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       cursor: 'default',
       selectedNeuron: { layerIx: 'init_output', neuronIx: 0 },
       hiddenLayerCount: 2,
+      maxHiddenLayerSize: 64,
     };
-
-    registerVizUpdateCB(this.forceRender);
   }
 
   private drawLayer = (layerColors: Uint8Array, layerIx: number) => {
@@ -60,7 +61,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     const height = pixelCount / width;
     const imageData = new ImageData(colorData, width, height);
     imageData.data.set(colorData, 0);
-    this.ctx!.putImageData(imageData, 0, PADDING_TOP + layerIx * LAYER_SPACING_Y);
+    this.ctx?.putImageData(imageData, 0, PADDING_TOP + layerIx * LAYER_SPACING_Y);
   };
 
   private renderOverlay() {
@@ -167,7 +168,11 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       return;
     }
 
-    const ctx = this.ctx!;
+    const ctx = this.ctx;
+    if (!ctx) {
+      return;
+    }
+
     const offsetX = this.state.selectedNeuron.neuronIx * (VIZ_SCALE_MULTIPLIER / dpr);
     const offsetY =
       PADDING_TOP / dpr +
@@ -214,18 +219,29 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   };
 
   private maybeRender = async (force = false) => {
-    if (this.state.hiddenLayerCount !== this.props.nnCtx.definition.hiddenLayers.length) {
-      this.setState({ hiddenLayerCount: this.props.nnCtx.definition.hiddenLayers.length });
-    }
-
-    if ((!this.props.nnCtx.isRunning && !force) || this.isRendering) {
-      return;
+    const maxHiddenLayerSize = Math.max(
+      ...this.props.nnCtx.definition.hiddenLayers.map(l => l.neuronCount),
+      2
+    );
+    if (
+      this.state.hiddenLayerCount !== this.props.nnCtx.definition.hiddenLayers.length ||
+      this.state.maxHiddenLayerSize !== maxHiddenLayerSize
+    ) {
+      this.setState({
+        hiddenLayerCount: this.props.nnCtx.definition.hiddenLayers.length,
+        maxHiddenLayerSize,
+      });
     }
 
     const ctx = this.ctx;
     if (!ctx) {
       return;
     }
+
+    if ((!this.props.nnCtx.isRunning && !force) || this.isRendering) {
+      return;
+    }
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
@@ -240,6 +256,11 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     if (!vizData) {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.font = '18px "PT Sans"';
+      ctx.fillStyle = '#ccc';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('Train some examples to see this visualization', 10, 30);
       return;
     }
 
@@ -270,6 +291,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   forceRender = () => this.maybeRender(true);
 
   public componentDidMount = () => {
+    setTimeout(() => registerVizUpdateCB(this.forceRender));
     this.intervalHandle = setInterval(this.maybeRender, 200);
   };
 
@@ -281,15 +303,15 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   };
 
   public render = () => (
-    <div className='layers-viz' style={this.props.style}>
+    <div className='layers-viz' style={this.props.appStyles.layersViz}>
       <div className='layers-viz-canvas-wrapper'>
         <canvas
-          width={VIZ_SCALE_MULTIPLIER * 128 * dpr}
-          height={(this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y * dpr}
+          width={Math.max(VIZ_SCALE_MULTIPLIER * this.state.maxHiddenLayerSize, 400 * dpr)}
+          height={(this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y}
           style={{
             cursor: this.state.cursor,
-            width: VIZ_SCALE_MULTIPLIER * 128,
-            height: (this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y,
+            width: Math.max((VIZ_SCALE_MULTIPLIER / dpr) * this.state.maxHiddenLayerSize, 400),
+            height: ((this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y) / dpr,
           }}
           ref={canvas => {
             if (!canvas) {
@@ -306,8 +328,19 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       </div>
 
       <div className='bottom-vizs'>
-        <CoordPicker coord={this.coord} onChange={this.forceRender} />
-        <NeuronResponsePlot selectedNeuron={this.state.selectedNeuron} nnCtx={this.props.nnCtx} />
+        <div className='header'>
+          <h3>Neuron Response Plot</h3>
+        </div>
+        <CoordPicker
+          coord={this.coord}
+          onChange={this.forceRender}
+          style={this.props.appStyles.bottomVizs.coordPicker}
+        />
+        <NeuronResponsePlot
+          selectedNeuron={this.state.selectedNeuron}
+          nnCtx={this.props.nnCtx}
+          style={this.props.appStyles.bottomVizs.neuronResponsePlot}
+        />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useLayoutEffect, useMemo, useState } from 'react';
 import './App.css';
 import NetworkConfigurator from './NetworkConfigurator';
 import { NNContext } from './NNContext';
+import { initPresetByID } from './presets';
 import RuntimeControls from './RuntimeControls';
 import { AppStyles, getAppStyles, MOBILE_CUTOFF_PX } from './sizing';
 
@@ -48,8 +49,18 @@ const Content: React.FC<ContentProps> = ({ nnCtx, appStyles, isConstrainedLayout
   );
 };
 
+if (window.location.search.includes('preset')) {
+  const searchParams = new URLSearchParams(window.location.search);
+  const preset = searchParams.get('preset');
+  if (preset) {
+    initPresetByID(preset);
+  }
+}
+
 const nnCtx = new NNContext(window.innerWidth < 850);
 (window as any).ctx = nnCtx;
+
+(window as any).serialize = () => console.log(JSON.stringify(nnCtx.definition));
 
 const App: React.FC = () => {
   const windowSize = useWindowSize();
