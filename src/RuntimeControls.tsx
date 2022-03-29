@@ -10,7 +10,7 @@ import { getSentry } from './sentry';
 import ExpandCollapseButton from './Components/ExpandCollapseButton';
 import LayersViz from './Charts/LayersViz/LayersViz';
 import { updateViz } from './Charts/vizControls';
-import type { AppStyles } from './sizing';
+import { AppStyles, RESPONSE_VIZ_RESOLUTION } from './sizing';
 
 const Charts = import('./Charts');
 
@@ -218,7 +218,7 @@ const buildSettings = (
   },
   {
     type: 'button',
-    label: 'reset',
+    label: viewportWidth < 850 ? 'load config + reset' : 'load config + reset training',
     action: async () => {
       if (nnCtx.isRunning) {
         return;
@@ -232,7 +232,7 @@ const buildSettings = (
   },
   {
     type: 'button',
-    label: viewportWidth < 850 ? 'train 1 million' : 'train 1 million examples',
+    label: viewportWidth < 850 ? 'train 250k examples' : 'train 1 million examples',
     action: async () => {
       onTrain1mmStart();
       if (nnCtx.isRunning) {
@@ -244,19 +244,23 @@ const buildSettings = (
       }
       updateViz();
 
-      getSentry()?.captureMessage('Train 1mm examples button clicked');
+      getSentry()?.captureMessage(
+        `Train ${viewportWidth < 850 ? '250k' : '1mm'} examples button clicked`
+      );
       nnCtx.isRunning = true;
       let costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
-      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
+      const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
       setOutputData({ responseMatrix, costs });
 
-      for (let i = 0; i < 40; i++) {
-        costs = await nnCtx.trainWithSourceFunction(sourceFn, 25_000, [0, 1]);
+      const batchSize = 25_000;
+      const iters = viewportWidth < 850 ? 10 : 40;
+      for (let i = 0; i < iters; i++) {
+        costs = await nnCtx.trainWithSourceFunction(sourceFn, batchSize, [0, 1]);
 
-        if (i % 3 === 0 || i === 39) {
-          const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
-          setOutputData({ responseMatrix, costs });
+        if (i % 3 === 0 || i === iters - 1) {
+          const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
+          setTimeout(() => setOutputData({ responseMatrix, costs }));
         }
       }
 
@@ -282,7 +286,7 @@ const buildSettings = (
       nnCtx.isRunning = true;
       const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
 
-      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
+      const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
       setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
       updateViz();
@@ -305,7 +309,7 @@ const buildSettings = (
       nnCtx.isRunning = true;
       const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1, [0, 1]);
 
-      const responseMatrix = await nnCtx.computeResponseMatrix(80, [0, 1]);
+      const responseMatrix = await nnCtx.computeResponseMatrix(RESPONSE_VIZ_RESOLUTION, [0, 1]);
       setOutputData({ responseMatrix, costs });
       nnCtx.isRunning = false;
       updateViz();
@@ -349,7 +353,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
   if (!isExpanded && isConstrainedLayout) {
     return (
       <div className='runtime-controls' style={appStyles.runtimeControls}>
-        <div className='collapsed-runtime-controls'>
+        <div className='collapsed-runtime-controls' onClick={() => setExpanded(true)}>
           <ExpandCollapseButton
             isExpanded={false}
             setExpanded={setExpanded}
@@ -357,7 +361,9 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
           />
           <ControlPanel
             style={{ width: '100%' }}
-            settings={settings.filter(setting => setting.label.includes('million'))}
+            settings={settings.filter(
+              setting => setting.label.includes('million') || setting.label.includes('250k')
+            )}
             onChange={(_key: string, val: any) => setSourceFn({ sourceFn: buildSourceFn(+val) })}
           />
         </div>

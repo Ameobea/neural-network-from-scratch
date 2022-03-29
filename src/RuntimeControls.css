@@ -4,6 +4,10 @@
   flex-direction: column;
 }
 
+.runtime-controls > .control-panel > div:nth-child(3) > button {
+  background-color: #5e223b !important;
+}
+
 .collapsed-runtime-controls {
   display: flex;
   flex-direction: row;

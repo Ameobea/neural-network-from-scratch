@@ -2,6 +2,7 @@ import EChartsReactCore from 'echarts-for-react/lib/core';
 import React from 'react';
 import * as echarts from 'echarts/core';
 import 'echarts-gl';
+import { RESPONSE_VIZ_RESOLUTION } from 'src/sizing';
 
 export type ResponseMatrix = [number, number, number][];
 
@@ -64,7 +65,7 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
         show: false,
       },
       top: isConstrainedLayout ? -50 : undefined,
-      bottom: isConstrainedLayout ? 0 : undefined,
+      bottom: isConstrainedLayout ? -50 : undefined,
     },
     series: [
       {
@@ -73,7 +74,7 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
         shading: 'color',
         wireframe: { show: true },
         data,
-        dataShape: [80, 80],
+        dataShape: [RESPONSE_VIZ_RESOLUTION, RESPONSE_VIZ_RESOLUTION],
       },
       {
         type: 'surface',
@@ -86,12 +87,12 @@ const ResponseViz: React.FC<ResponseVizProps> = ({
         },
         equation: {
           x: {
-            step: (inputRange[1] - inputRange[0]) / 80,
+            step: (inputRange[1] - inputRange[0]) / RESPONSE_VIZ_RESOLUTION,
             min: inputRange[0],
             max: inputRange[1],
           },
           y: {
-            step: (inputRange[1] - inputRange[0]) / 80,
+            step: (inputRange[1] - inputRange[0]) / RESPONSE_VIZ_RESOLUTION,
             min: inputRange[0],
             max: inputRange[1],
           },

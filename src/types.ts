@@ -1,14 +1,14 @@
-export const buildDefaultNetworkDefinition = (): NeuralNetworkDefinition => ({
+export const buildDefaultNetworkDefinition = (isMobile: boolean): NeuralNetworkDefinition => ({
   inputLayer: { neuronCount: 2 },
   hiddenLayers: [
     {
-      neuronCount: 64,
+      neuronCount: isMobile ? 40 : 64,
       activationFunctionType: ActivationFunctionType.LeakyReLU,
       initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
       initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
     },
     {
-      neuronCount: 32,
+      neuronCount: isMobile ? 20 : 32,
       activationFunctionType: ActivationFunctionType.LeakyReLU,
       initWeightsFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,
       initBiasesFnDefinition: ValueInitializerType.RandomNegOneTenthPositiveOneTenth,

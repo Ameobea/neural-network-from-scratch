@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 rand = { version = "0.7", default_features = false, features = ["alloc"] }
 pcg = "4.0"
+fastapprox = "0.3"

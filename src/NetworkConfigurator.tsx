@@ -236,7 +236,7 @@ const NetworkConfigurator: React.FC<NetworkConfiguratorProps> = ({
   style,
 }) => {
   const [definition, setDefinitionInner] = useState<NeuralNetworkDefinition>(
-    buildDefaultNetworkDefinition()
+    buildDefaultNetworkDefinition(window.innerWidth < 850)
   );
   const setDefinition = useCallback(
     newDef => {

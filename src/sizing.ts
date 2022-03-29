@@ -2,6 +2,8 @@ import React from 'react';
 
 export const MOBILE_CUTOFF_PX = 850;
 
+export const RESPONSE_VIZ_RESOLUTION = (window.innerWidth || 0) >= MOBILE_CUTOFF_PX ? 75 : 50;
+
 export interface AppStyles {
   content: React.CSSProperties;
   networkConfigurator: React.CSSProperties;
@@ -20,7 +22,7 @@ const getMobileStyles = (): AppStyles => {
 
   const runtimeControls: React.CSSProperties = {};
 
-  const responseViz: React.CSSProperties = { height: 'max(300px, calc(100vh - 335px))' };
+  const responseViz: React.CSSProperties = { height: 'max(270px, calc(100vh - 360px))' };
 
   const layersViz: React.CSSProperties = {};
 

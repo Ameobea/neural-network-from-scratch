@@ -48,7 +48,7 @@ const Content: React.FC<ContentProps> = ({ nnCtx, appStyles, isConstrainedLayout
   );
 };
 
-const nnCtx = new NNContext();
+const nnCtx = new NNContext(window.innerWidth < 850);
 (window as any).ctx = nnCtx;
 
 const App: React.FC = () => {

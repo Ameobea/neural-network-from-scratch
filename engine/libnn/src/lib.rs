@@ -158,17 +158,80 @@ impl ActivationFunction for LeakyReLU {
         }
     }
 
-    // TODO: Batch Application
+    #[cfg(target_arch = "wasm32")]
+    fn apply_batch(&self, dst: &mut [Weight], src: &[Weight]) {
+        debug_assert_eq!(src.len(), dst.len());
+        let remainder = src.len() % 4;
+        let chunk_count = (src.len() - remainder) / 4;
+        let negative_multiplier_v = f32x4_splat(0.01);
+        let zero_v = f32x4_splat(0.);
+
+        for chunk_ix in 0..chunk_count {
+            let src = unsafe { v128_load(src.as_ptr().add(chunk_ix * 4) as *const _) };
+            let mask = f32x4_ge(src, zero_v);
+            let negatives = f32x4_mul(src, negative_multiplier_v);
+            let val = v128_bitselect(src, negatives, mask);
+            unsafe { v128_store(dst.as_mut_ptr().add(chunk_ix * 4) as *mut _, val) }
+        }
+        for remainder_ix in (chunk_count * 4)..src.len() {
+            unsafe { *dst.get_unchecked_mut(remainder_ix) = self.get_output(*src.get_unchecked(remainder_ix)) };
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn apply_derivative_batch(&self, dst: &mut [Weight], errors: &[Weight], outputs_before_activation: &[Weight]) {
+        debug_assert_eq!(dst.len(), errors.len());
+        debug_assert_eq!(errors.len(), outputs_before_activation.len());
+
+        let remainder = dst.len() % 4;
+        let chunk_count = (dst.len() - remainder) / 4;
+        let zero_v = f32x4_splat(0.);
+        let negative_derivative_v = f32x4_splat(0.01);
+
+        debug_assert!(dst.len() == chunk_count * 4 + remainder);
+        for chunk_ix in 0..chunk_count {
+            let outputs = unsafe { v128_load(outputs_before_activation.as_ptr().add(chunk_ix * 4) as *const _) };
+            let errors = unsafe { v128_load(errors.as_ptr().add(chunk_ix * 4) as *const _) };
+            let ge_mask = f32x4_ge(outputs, zero_v);
+
+            unsafe {
+                let negative_derivatives = f32x4_mul(errors, negative_derivative_v);
+                v128_store(
+                    dst.as_mut_ptr().add(chunk_ix * 4) as *mut _,
+                    v128_bitselect(errors, negative_derivatives, ge_mask),
+                );
+            }
+        }
+        for remainder_ix in (chunk_count * 4)..dst.len() {
+            unsafe {
+                let error = *errors.get_unchecked(remainder_ix);
+                *dst.get_unchecked_mut(remainder_ix) = if *outputs_before_activation.get_unchecked(remainder_ix) >= 0. {
+                    error
+                } else {
+                    0.01 * error
+                }
+            };
+        }
+    }
 }
 
 pub struct GrowingCosineUnit;
 pub static GCU: GrowingCosineUnit = GrowingCosineUnit;
 
 impl ActivationFunction for GrowingCosineUnit {
-    // TODO: Fastmath
-    fn get_output(&self, x: Weight) -> Weight { x * x.cos() }
+    fn get_output(&self, x: Weight) -> Weight {
+        if x >= -std::f32::consts::PI && x <= std::f32::consts::PI {
+            return x * fastapprox::fast::cos(x);
+        }
+        return x * x.cos();
+    }
 
-    fn derivative(&self, x: Weight) -> Weight { x.cos() - (x * x.sin()) }
+    fn derivative(&self, x: Weight) -> Weight {
+        if x >= -std::f32::consts::PI && x <= std::f32::consts::PI {
+            return fastapprox::fast::cos(x) - (x * fastapprox::fast::sin(x));
+        }
+        return x.cos() - (x * x.sin());
+    }
 
     // TODO: Batch Application
 }

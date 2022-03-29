@@ -12,9 +12,12 @@ const nnWorker = Comlink.wrap<NNWorkerCtx>(
 (window as any).nnWorker = nnWorker;
 
 export class NNContext {
-  public definition: NeuralNetworkDefinition = buildDefaultNetworkDefinition();
-
+  public definition: NeuralNetworkDefinition;
   public isRunning = false;
+
+  constructor(isMobile: boolean) {
+    this.definition = buildDefaultNetworkDefinition(isMobile);
+  }
 
   public async trainWithSourceFunction(
     sourceFn: (inputs: Float32Array) => Float32Array,

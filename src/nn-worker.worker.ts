@@ -19,10 +19,11 @@ export class NNWorkerCtx {
   private engine: typeof import('./wasm_interface');
   private ctxPtr: number | null = null;
   private hiddenLayerCount = 2;
-  private definition: NeuralNetworkDefinition = buildDefaultNetworkDefinition();
+  private definition: NeuralNetworkDefinition;
 
-  constructor(engine: typeof import('./wasm_interface')) {
+  constructor(engine: typeof import('./wasm_interface'), isMobile: boolean) {
     this.engine = engine;
+    this.definition = buildDefaultNetworkDefinition(isMobile);
   }
 
   private buildCtx(def: NeuralNetworkDefinition) {
@@ -68,6 +69,7 @@ export class NNWorkerCtx {
   }
 
   public init(def: NeuralNetworkDefinition | null) {
+    console.log('Setting definition', def);
     if (def) {
       this.definition = def;
       this.buildCtx(def);
@@ -199,7 +201,7 @@ export class NNWorkerCtx {
 
 const init = async () => {
   const engine = await engineModule;
-  Comlink.expose(new NNWorkerCtx(engine));
+  Comlink.expose(new NNWorkerCtx(engine, true));
 };
 
 init();

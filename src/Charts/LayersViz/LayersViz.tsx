@@ -27,6 +27,7 @@ interface LayersVizProps {
 interface LayersVizState {
   cursor: string;
   selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null;
+  hiddenLayerCount: number;
 }
 
 class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
@@ -43,7 +44,11 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
 
   constructor(props: LayersVizProps) {
     super(props);
-    this.state = { cursor: 'default', selectedNeuron: { layerIx: 'init_output', neuronIx: 0 } };
+    this.state = {
+      cursor: 'default',
+      selectedNeuron: { layerIx: 'init_output', neuronIx: 0 },
+      hiddenLayerCount: 2,
+    };
 
     registerVizUpdateCB(this.forceRender);
   }
@@ -68,22 +73,23 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     this.ctx.font = `${14}px "PT Sans"`;
     this.ctx.fillStyle = '#ccc';
     this.ctx.strokeStyle = '#ccc';
-    this.ctx.textBaseline = 'top';
-    this.ctx.fillText('Inputs', 1, 2 * dpr);
+    this.ctx.textBaseline = 'bottom';
+    this.ctx.fillText('Inputs', 1, PADDING_TOP / dpr - 2);
+
     for (
       let hiddenLayerIx = 0;
       hiddenLayerIx < this.props.nnCtx.definition.hiddenLayers.length;
       hiddenLayerIx++
     ) {
-      const y = PADDING_TOP / dpr + ((hiddenLayerIx + 1) * LAYER_SPACING_Y) / dpr - 8 * dpr;
+      const y = PADDING_TOP / dpr + ((hiddenLayerIx + 1) * LAYER_SPACING_Y) / dpr - 2;
       this.ctx.fillText(`Hidden Layer ${hiddenLayerIx + 1} Outputs (post-activation)`, 1, y);
     }
     this.ctx.fillText(
       'Network Output',
       1,
       PADDING_TOP / dpr +
-        ((this.props.nnCtx.definition.hiddenLayers.length + 1) * LAYER_SPACING_Y) / dpr +
-        -(8 * dpr)
+        ((this.props.nnCtx.definition.hiddenLayers.length + 1) * LAYER_SPACING_Y) / dpr -
+        2
     );
   }
 
@@ -208,6 +214,10 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   };
 
   private maybeRender = async (force = false) => {
+    if (this.state.hiddenLayerCount !== this.props.nnCtx.definition.hiddenLayers.length) {
+      this.setState({ hiddenLayerCount: this.props.nnCtx.definition.hiddenLayers.length });
+    }
+
     if ((!this.props.nnCtx.isRunning && !force) || this.isRendering) {
       return;
     }
@@ -275,8 +285,12 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       <div className='layers-viz-canvas-wrapper'>
         <canvas
           width={VIZ_SCALE_MULTIPLIER * 128 * dpr}
-          height={300 * dpr}
-          style={{ cursor: this.state.cursor, width: VIZ_SCALE_MULTIPLIER * 128, height: 300 }}
+          height={(this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y * dpr}
+          style={{
+            cursor: this.state.cursor,
+            width: VIZ_SCALE_MULTIPLIER * 128,
+            height: (this.state.hiddenLayerCount + 2) * LAYER_SPACING_Y,
+          }}
           ref={canvas => {
             if (!canvas) {
               this.ctx = null;
