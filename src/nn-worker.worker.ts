@@ -196,6 +196,12 @@ export class NNWorkerCtx {
     }
     return Comlink.transfer(response, [response.buffer]);
   }
+
+  public getColorScaleLegend(low: number, high: number, width: number, height: number) {
+    const colors = this.engine.build_color_scale_legend(low, high, width, height);
+    console.log(colors);
+    return Comlink.transfer(colors, [colors.buffer]);
+  }
 }
 
 const init = async () => {

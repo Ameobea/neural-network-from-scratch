@@ -199,4 +199,17 @@ impl LayerVizState {
 
         buf
     }
+
+    pub fn build_color_scale_legend(low: f32, high: f32, width: usize, height: usize) -> Vec<u8> {
+        initialize_colorizer_luts();
+        let mut buf = Vec::with_capacity(width * height * 4);
+        for y in (0..height).rev() {
+            let val = (y as f32 / (height - 1) as f32) * (high - low) + low;
+            let color = colorize_output(val);
+            for _ in 0..width {
+                buf.extend_from_slice(&color);
+            }
+        }
+        buf
+    }
 }

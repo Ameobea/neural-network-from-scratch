@@ -354,3 +354,8 @@ pub fn build_neuron_response_viz(ctx: *mut NNCtx, layer_ix: isize, neuron_ix: us
     };
     LayerVizState::build_neuron_response_viz(&mut ctx.network, layer_ix, neuron_ix, size)
 }
+
+#[wasm_bindgen]
+pub fn build_color_scale_legend(low: f32, high: f32, width: usize, height: usize) -> Vec<u8> {
+    LayerVizState::build_color_scale_legend(low, high, width, height)
+}

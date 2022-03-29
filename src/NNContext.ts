@@ -96,4 +96,8 @@ export class NNContext {
   public getNeuronResponse(layerIx: number, neuronIx: number, size: number) {
     return nnWorker.getNeuronResponse(layerIx, neuronIx, size);
   }
+
+  public getColorScaleLegend(min: number, max: number, width: number, height: number) {
+    return nnWorker.getColorScaleLegend(min, max, width, height);
+  }
 }

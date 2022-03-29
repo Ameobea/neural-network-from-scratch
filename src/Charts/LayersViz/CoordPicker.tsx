@@ -103,7 +103,6 @@ class CoordPickerEngine {
   };
 
   public dispose() {
-    console.log('dispose');
     this.canvas.onmousedown = null;
     this.canvas.onmouseup = null;
     this.canvas.onmousemove = null;

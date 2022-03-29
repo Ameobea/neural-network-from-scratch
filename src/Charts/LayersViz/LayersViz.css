@@ -1,5 +1,4 @@
 .layers-viz {
-  max-width: 800px;
   overflow-x: auto;
   position: relative;
 }
@@ -46,4 +45,10 @@
   font-size: 14px;
   margin: 0;
   user-select: none;
+}
+
+.colors-scale-legend {
+  position: absolute;
+  right: 10px;
+  background: transparent !important;
 }

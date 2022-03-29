@@ -3,6 +3,7 @@ import React from 'react';
 import { NNContext } from 'src/NNContext';
 import { AppStyles } from 'src/sizing';
 import { deregisterVizUpdateCB, registerVizUpdateCB } from '../vizControls';
+import ColorsScaleLegend from './ColorsScaleLegend';
 import CoordPicker from './CoordPicker';
 
 import './LayersViz.css';
@@ -341,6 +342,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
           nnCtx={this.props.nnCtx}
           style={this.props.appStyles.bottomVizs.neuronResponsePlot}
         />
+        <ColorsScaleLegend nnCtx={this.props.nnCtx} />
       </div>
     </div>
   );
