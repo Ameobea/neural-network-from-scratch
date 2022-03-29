@@ -165,7 +165,8 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
   };
 
   private maybeRenderSelectedNeuron = (hiddenLayerCount: number) => {
-    if (!this.state.selectedNeuron) {
+    const { selectedNeuron } = this.state;
+    if (!selectedNeuron) {
       return;
     }
 
@@ -174,12 +175,31 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       return;
     }
 
-    const offsetX = this.state.selectedNeuron.neuronIx * (VIZ_SCALE_MULTIPLIER / dpr);
+    if (
+      typeof selectedNeuron.layerIx === 'number' &&
+      selectedNeuron.layerIx > this.layerSizes.hidden.length + 1
+    ) {
+      this.setState({ selectedNeuron: null });
+      return;
+    }
+
+    let neuronCountForLayer;
+    if (selectedNeuron.layerIx === 0) {
+      neuronCountForLayer = this.layerSizes.input;
+    } else if (selectedNeuron.layerIx === this.layerSizes.hidden.length + 1) {
+      neuronCountForLayer = this.layerSizes.output;
+    } else {
+      neuronCountForLayer = this.layerSizes.hidden[selectedNeuron.neuronIx - 1];
+    }
+    if (selectedNeuron.neuronIx >= neuronCountForLayer) {
+      this.setState({ selectedNeuron: null });
+      return;
+    }
+
+    const offsetX = selectedNeuron.neuronIx * (VIZ_SCALE_MULTIPLIER / dpr);
     const offsetY =
       PADDING_TOP / dpr +
-      (this.state.selectedNeuron.layerIx === 'init_output'
-        ? hiddenLayerCount + 1
-        : this.state.selectedNeuron.layerIx) *
+      (selectedNeuron.layerIx === 'init_output' ? hiddenLayerCount + 1 : selectedNeuron.layerIx) *
         (LAYER_SPACING_Y / dpr);
     ctx.strokeStyle = '#00ee00';
     ctx.lineWidth = 3;

@@ -1,11 +1,14 @@
 html.constrained-layout {
   min-height: 100vh;
   max-height: 100vh;
-  overflow: hidden;
 }
 
 html {
   background-color: #101010;
+}
+
+canvas {
+  -webkit-tap-highlight-color: transparent;
 }
 
 * {

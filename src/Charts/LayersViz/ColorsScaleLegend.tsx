@@ -6,9 +6,10 @@ interface ColorsScaleLegendProps {
   nnCtx: NNContext;
 }
 
+const CANVAS_WIDTH = 42;
 const CANVAS_HEIGHT = 260;
+const SCALE_WIDTH = 18;
 const SCALE_HEIGHT = 235;
-const WIDTH = 42;
 const MAX = 2.5;
 const MIN = -2.5;
 
@@ -16,8 +17,17 @@ const dpr = Math.floor(window.devicePixelRatio);
 
 const drawColorsScaleLegend = async (ctx: CanvasRenderingContext2D, nnCtx: NNContext) => {
   ctx.scale(dpr, dpr);
-  const colorData: Uint8Array = await nnCtx.getColorScaleLegend(MIN, MAX, 18, SCALE_HEIGHT);
-  const imageData = new ImageData(new Uint8ClampedArray(colorData.buffer), 18, SCALE_HEIGHT);
+  const colorData: Uint8Array = await nnCtx.getColorScaleLegend(
+    MIN,
+    MAX,
+    SCALE_WIDTH * dpr,
+    SCALE_HEIGHT * dpr
+  );
+  const imageData = new ImageData(
+    new Uint8ClampedArray(colorData.buffer),
+    SCALE_WIDTH * dpr,
+    SCALE_HEIGHT * dpr
+  );
   ctx.putImageData(imageData, 0, (CANVAS_HEIGHT - SCALE_HEIGHT) / 2);
 
   ctx.font = '12px "PT Sans"';
@@ -30,9 +40,9 @@ const drawColorsScaleLegend = async (ctx: CanvasRenderingContext2D, nnCtx: NNCon
 const ColorsScaleLegend: React.FC<ColorsScaleLegendProps> = ({ nnCtx }) => (
   <canvas
     className='colors-scale-legend'
-    width={WIDTH * dpr}
+    width={CANVAS_WIDTH * dpr}
     height={CANVAS_HEIGHT * dpr}
-    style={{ width: WIDTH, height: CANVAS_HEIGHT }}
+    style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
     ref={canvas => {
       if (!canvas) {
         return;

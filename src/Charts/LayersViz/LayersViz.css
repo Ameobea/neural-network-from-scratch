@@ -7,7 +7,6 @@
   position: relative;
   max-width: 100%;
   overflow-x: auto;
-  margin-bottom: 4px;
 }
 
 .layers-viz canvas {
@@ -31,6 +30,8 @@
 .bottom-vizs {
   position: relative;
   height: 270px;
+  background-color: rgb(34, 34, 34);
+  padding-bottom: 20px;
 }
 
 .bottom-vizs .header {
@@ -50,6 +51,6 @@
 .colors-scale-legend {
   position: absolute;
   right: 10px;
-  top: 8px;
+  top: 15px;
   background: transparent !important;
 }

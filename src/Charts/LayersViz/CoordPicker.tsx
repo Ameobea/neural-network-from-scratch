@@ -59,7 +59,6 @@ class CoordPickerEngine {
 
   private handleMouseDown = (e: MouseEvent) => {
     const coord = this.getCoordFromMouseEvent(e);
-    console.log(coord);
     this.coord.set(coord);
     this.render();
     this.onChange();

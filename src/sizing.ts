@@ -30,7 +30,7 @@ const buildBottomVizsStyles = (layersVizWidth: number): BottomVizsStyles => ({
   coordPicker: {
     position: 'absolute',
     left: (layersVizWidth - 250) / 2,
-    top: 0,
+    top: 20,
   },
 });
 
