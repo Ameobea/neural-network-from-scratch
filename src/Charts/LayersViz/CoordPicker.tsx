@@ -85,6 +85,7 @@ class CoordPickerEngine {
     this.coord.set(coord);
     this.render();
     this.onChange();
+    e.preventDefault();
 
     this.canvas.onmousemove = this.handleMouseMove;
     this.canvas.ontouchmove = this.handleTouchMove;
@@ -100,6 +101,7 @@ class CoordPickerEngine {
     this.coord.set(coord);
     this.render();
     this.onChange();
+    e.preventDefault();
   };
 
   public dispose() {

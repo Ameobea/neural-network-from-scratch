@@ -50,5 +50,6 @@
 .colors-scale-legend {
   position: absolute;
   right: 10px;
+  top: 8px;
   background: transparent !important;
 }
