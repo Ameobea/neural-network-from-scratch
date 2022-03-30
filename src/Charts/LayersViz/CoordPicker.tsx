@@ -138,6 +138,46 @@ const CoordPicker: React.FC<CoordPickerProps> = ({ coord, onChange, style }) => 
           engine.current = new CoordPickerEngine(canvas, coord, onChange);
         }}
       />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          transform: 'translate(-18px, 9px)',
+        }}
+      >
+        0, 0
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transform: 'translate(-19px, -13px)',
+        }}
+      >
+        0, 1
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          transform: 'translate(19px, 9px)',
+        }}
+      >
+        1, 0
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          transform: 'translate(19px, -13px)',
+        }}
+      >
+        1, 1
+      </div>
     </div>
   );
 };

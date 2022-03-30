@@ -22,5 +22,6 @@ export const initPresetByID = (id: string) => {
   const { definition, defaultViz }: Preset = JSON.parse(serializedPreset);
   (window as any).defaultDefinition = definition;
   (window as any).defaultViz = defaultViz;
+
   console.log('Loaded preset', id);
 };

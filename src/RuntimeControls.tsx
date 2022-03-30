@@ -65,7 +65,23 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   appStyles,
   expandRuntimeControls,
 }) => {
-  const [selectedViz, setSelectedViz] = useState<'response' | 'layers'>('response');
+  const [selectedViz, setSelectedVizInner] = useState<'response' | 'layers'>('response');
+  const setSelectedViz = useCallback(
+    (selectedViz: 'response' | 'layers') => {
+      setSelectedVizInner(selectedViz);
+      getSentry()?.captureMessage(`Selected viz: ${selectedViz}`);
+
+      if (isConstrainedLayout) {
+        const htmlElement = document.getElementsByTagName('html')[0];
+        if (selectedViz === 'response') {
+          htmlElement.style.overflowY = 'hidden';
+        } else {
+          htmlElement.style.overflowY = 'auto';
+        }
+      }
+    },
+    [isConstrainedLayout]
+  );
 
   if (appStyles.showSideBySizeResponseViz) {
     return (
@@ -228,7 +244,7 @@ const buildSettings = (
   },
   {
     type: 'button',
-    label: viewportWidth < 850 ? 'load config + reset' : 'load config + reset training',
+    label: viewportWidth < 850 ? 'reset + load config' : 'reset training + load config',
     action: async () => {
       if (nnCtx.isRunning) {
         return;

@@ -57,6 +57,15 @@ if (window.location.search.includes('preset')) {
   }
 }
 
+if (getIsConstrainedLayout(window.innerWidth)) {
+  const htmlElement = document.getElementsByTagName('html')[0];
+  if (((window as any).defaultViz ?? 'response') === 'response') {
+    htmlElement.style.overflowY = 'hidden';
+  } else {
+    htmlElement.style.overflowY = 'auto';
+  }
+}
+
 const nnCtx = new NNContext(window.innerWidth < 850);
 (window as any).ctx = nnCtx;
 

@@ -16,6 +16,9 @@
 .coord-picker {
   position: absolute;
   z-index: 2;
+
+  font-size: 12px;
+  font-family: 'PT Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .coord-picker canvas {

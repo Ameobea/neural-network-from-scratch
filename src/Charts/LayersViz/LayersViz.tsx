@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { NNContext } from 'src/NNContext';
+import { getSentry } from 'src/sentry';
 import { AppStyles } from 'src/sizing';
 import { deregisterVizUpdateCB, registerVizUpdateCB } from '../vizControls';
 import ColorsScaleLegend from './ColorsScaleLegend';
@@ -150,6 +151,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       return;
     }
 
+    getSentry()?.captureMessage(`Set selected neuron layer=${neuronUnderPointer.layerIx}`);
     this.setState({ selectedNeuron: neuronUnderPointer }, this.forceRender);
   };
 
@@ -275,9 +277,10 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     this.isRendering = false;
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
 
     if (!vizData) {
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.font = '18px "PT Sans"';
       ctx.fillStyle = '#ccc';
       ctx.textBaseline = 'alphabetic';

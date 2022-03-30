@@ -16,6 +16,7 @@ const MIN = -2.5;
 const dpr = Math.floor(window.devicePixelRatio);
 
 const drawColorsScaleLegend = async (ctx: CanvasRenderingContext2D, nnCtx: NNContext) => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
   const colorData: Uint8Array = await nnCtx.getColorScaleLegend(
     MIN,

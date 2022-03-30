@@ -41,6 +41,7 @@
   margin-right: 1px;
   background-color: #333;
   color: #ccc;
+  user-select: none;
 }
 
 .viz-picker .viz-picker-tab[data-selected='false'] {
