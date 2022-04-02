@@ -240,7 +240,7 @@ const buildSettings = (
       ridges: SourceFnType.Ridges,
       'math.random': SourceFnType.Random,
     },
-    initial: SourceFnType.ComplexFancy,
+    initial: (window as any).defaultTargetFunction ?? SourceFnType.ComplexFancy,
   },
   {
     type: 'button',
@@ -371,7 +371,7 @@ const RuntimeControls: React.FC<RuntimeControlsProps> = ({
   // Need to wrap in an object because we can't have raw functions as state due to the ability to pass
   // callbacks into `setState`
   const [{ sourceFn }, setSourceFn] = useState({
-    sourceFn: buildSourceFn(SourceFnType.ComplexFancy),
+    sourceFn: buildSourceFn((window as any).defaultTargetFunction ?? SourceFnType.ComplexFancy),
   });
   const setOutputData = useCallback((action: OutputDataAction) => dispatchOutputData(action), []);
   const viewportWidth = useWindowSize().width;
