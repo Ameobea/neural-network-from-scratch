@@ -24,6 +24,7 @@
 .coord-picker canvas {
   background-color: transparent;
   z-index: 2;
+  cursor: crosshair;
 }
 
 .neuron-response-plot {

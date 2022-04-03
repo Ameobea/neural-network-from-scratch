@@ -30,15 +30,17 @@ class CoordPickerEngine {
     const { ctx } = this;
     ctx.clearRect(0, 0, this.canvasSize.width, this.canvasSize.height);
     ctx.fillStyle = '#ddffdd';
+    // Draw crosshair
     ctx.beginPath();
-    ctx.arc(
-      this.coord[0] * this.canvasSize.width,
-      (1 - this.coord[1]) * this.canvasSize.height,
-      4,
-      0,
-      2 * Math.PI
-    );
-    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    const x = this.coord[0] * this.canvasSize.width;
+    const y = (1 - this.coord[1]) * this.canvasSize.height;
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, this.canvasSize.height);
+    ctx.moveTo(0, y);
+    ctx.lineTo(this.canvasSize.width, y);
+    ctx.stroke();
   }
 
   private getCoordFromMouseEvent = (e: MouseEvent) => {

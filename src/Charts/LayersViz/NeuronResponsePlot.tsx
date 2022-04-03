@@ -7,6 +7,7 @@ const NEURON_RESPONSE_PLOT_SIZE = 250;
 
 class NeuronResponsePlotEngine {
   private nnCtx: NNContext;
+  private hasRendered = false;
   private ctx: CanvasRenderingContext2D;
   private selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null = {
     layerIx: 'init_output',
@@ -18,13 +19,13 @@ class NeuronResponsePlotEngine {
   constructor(nnCtx: NNContext, ctx: CanvasRenderingContext2D) {
     this.nnCtx = nnCtx;
     this.ctx = ctx;
-    this.intervalHandle = setInterval(this.render, 100);
+    this.intervalHandle = setInterval(() => this.render(), 100);
 
     registerVizUpdateCB(this.forceRender);
   }
 
   private render = async (force = false) => {
-    if (this.isRendering || (!force && !this.nnCtx.isRunning)) {
+    if (this.hasRendered && (this.isRendering || (!force && !this.nnCtx.isRunning))) {
       return;
     }
 
@@ -39,9 +40,9 @@ class NeuronResponsePlotEngine {
       this.selectedNeuron.neuronIx,
       NEURON_RESPONSE_PLOT_SIZE
     );
+    this.isRendering = false;
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     if (!response) {
-      this.isRendering = false;
       return;
     }
 
@@ -51,7 +52,7 @@ class NeuronResponsePlotEngine {
       NEURON_RESPONSE_PLOT_SIZE
     );
     this.ctx.putImageData(imgData, 0, 0);
-    this.isRendering = false;
+    this.hasRendered = true;
   };
 
   public forceRender = () => this.render(true);

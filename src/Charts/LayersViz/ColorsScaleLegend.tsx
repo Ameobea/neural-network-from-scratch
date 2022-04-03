@@ -1,6 +1,7 @@
 import React from 'react';
 
 import type { NNContext } from 'src/NNContext';
+import { delay } from 'src/util';
 
 interface ColorsScaleLegendProps {
   nnCtx: NNContext;
@@ -16,14 +17,17 @@ const MIN = -2.5;
 const dpr = Math.floor(window.devicePixelRatio);
 
 const drawColorsScaleLegend = async (ctx: CanvasRenderingContext2D, nnCtx: NNContext) => {
+  const colorData = await Promise.race([
+    nnCtx.getColorScaleLegend(MIN, MAX, SCALE_WIDTH * dpr, SCALE_HEIGHT * dpr),
+    delay(50),
+  ] as const);
+  if (!colorData) {
+    setTimeout(() => drawColorsScaleLegend(ctx, nnCtx), 50);
+    return;
+  }
+
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-  const colorData: Uint8Array = await nnCtx.getColorScaleLegend(
-    MIN,
-    MAX,
-    SCALE_WIDTH * dpr,
-    SCALE_HEIGHT * dpr
-  );
   const imageData = new ImageData(
     new Uint8ClampedArray(colorData.buffer),
     SCALE_WIDTH * dpr,

@@ -176,6 +176,10 @@ fn maybe_init() {
 
     console_error_panic_hook::set_once();
     unsafe { RNG = pcg::Pcg::seed_from_u64(10203040382934) };
+    // Pump the RNG a few times because it tends to output zeroes for the first few samples
+    for _ in 0..10 {
+        unsafe { RNG.next_u64() };
+    }
     initialize_colorizer_luts();
 }
 

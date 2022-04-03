@@ -27,7 +27,9 @@ interface ContentProps {
 }
 
 const Content: React.FC<ContentProps> = ({ nnCtx, appStyles, isConstrainedLayout }) => {
-  const [expanded, setExpanded] = useState<'configurator' | 'runtime'>('configurator');
+  const [expanded, setExpanded] = useState<'configurator' | 'runtime'>(
+    (window as any).defaultExpanded ?? 'configurator'
+  );
 
   return (
     <div className='content' style={appStyles.content}>

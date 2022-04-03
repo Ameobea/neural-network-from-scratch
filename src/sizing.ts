@@ -2,7 +2,7 @@ import React from 'react';
 
 export const MOBILE_CUTOFF_PX = 850;
 
-export const RESPONSE_VIZ_RESOLUTION = (window.innerWidth || 0) >= MOBILE_CUTOFF_PX ? 75 : 50;
+export const RESPONSE_VIZ_RESOLUTION = (window.innerWidth || 0) >= 800 ? 75 : 50;
 
 export interface BottomVizsStyles {
   neuronResponsePlot: React.CSSProperties;

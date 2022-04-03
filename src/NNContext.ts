@@ -15,6 +15,9 @@ export class NNContext {
   public definition: NeuralNetworkDefinition;
   public isRunning = false;
 
+  private _hasTrained = false;
+  public hasTrained = () => this._hasTrained;
+
   constructor(isMobile: boolean) {
     this.definition = buildDefaultNetworkDefinition(isMobile);
   }
@@ -27,6 +30,7 @@ export class NNContext {
     if (!(await nnWorker.getIsInitialized())) {
       throw new UnreachableException('Not initialized');
     }
+    this._hasTrained = true;
 
     const inputDims = this.definition.inputLayer.neuronCount;
     const outputDims = this.definition.outputLayer.neuronCount;
@@ -90,10 +94,16 @@ export class NNContext {
     selectedNeuron: { layerIx: number | 'init_output'; neuronIx: number } | null,
     vizScaleMultiplier: number
   ) {
+    if (!this.hasTrained) {
+      return null;
+    }
     return nnWorker.getVizData(example, selectedNeuron, vizScaleMultiplier);
   }
 
   public getNeuronResponse(layerIx: number, neuronIx: number, size: number) {
+    if (!this.hasTrained) {
+      return null;
+    }
     return nnWorker.getNeuronResponse(layerIx, neuronIx, size);
   }
 

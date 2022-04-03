@@ -214,7 +214,10 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
       return;
     }
 
-    const ctx = this.ctx!;
+    const ctx = this.ctx;
+    if (!ctx) {
+      return;
+    }
     if (selectedNeuronInputWeights.length % 4 !== 0) {
       throw new Error('Unexpected weights colors length');
     }
@@ -269,11 +272,13 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
     ctx.scale(dpr, dpr);
 
     this.isRendering = true;
-    const vizData = await this.props.nnCtx.getVizData(
-      this.coord,
-      this.state.selectedNeuron,
-      VIZ_SCALE_MULTIPLIER
-    );
+    const vizData = this.props.nnCtx.hasTrained()
+      ? await this.props.nnCtx.getVizData(
+          this.coord,
+          this.state.selectedNeuron,
+          VIZ_SCALE_MULTIPLIER
+        )
+      : null;
     this.isRendering = false;
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -316,7 +321,7 @@ class LayersViz extends React.Component<LayersVizProps, LayersVizState> {
 
   public componentDidMount = () => {
     setTimeout(() => registerVizUpdateCB(this.forceRender));
-    this.intervalHandle = setInterval(this.maybeRender, 200);
+    this.intervalHandle = setInterval(() => this.maybeRender(), 200);
   };
 
   public componentWillUnmount = () => {

@@ -1,4 +1,11 @@
-import React, { Suspense, useCallback, useMemo, useState, useReducer } from 'react';
+import React, {
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+  useReducer,
+  startTransition,
+} from 'react';
 import ControlPanel from 'react-control-panel';
 import { UnreachableException, useWindowSize } from 'ameo-utils';
 
@@ -65,10 +72,12 @@ const OutputDataDisplay: React.FC<OutputDataDisplayProps> = ({
   appStyles,
   expandRuntimeControls,
 }) => {
-  const [selectedViz, setSelectedVizInner] = useState<'response' | 'layers'>('response');
+  const [selectedViz, setSelectedVizInner] = useState<'response' | 'layers'>(
+    (window as any).defaultViz ?? 'response'
+  );
   const setSelectedViz = useCallback(
     (selectedViz: 'response' | 'layers') => {
-      setSelectedVizInner(selectedViz);
+      startTransition(() => setSelectedVizInner(selectedViz));
       getSentry()?.captureMessage(`Selected viz: ${selectedViz}`);
 
       if (isConstrainedLayout) {
@@ -258,7 +267,7 @@ const buildSettings = (
   },
   {
     type: 'button',
-    label: viewportWidth < 850 ? 'train 250k examples' : 'train 1 million examples',
+    label: viewportWidth < 800 ? 'train 250k examples' : 'train 1 million examples',
     action: async () => {
       onTrain1mmStart();
       if (nnCtx.isRunning) {
@@ -271,7 +280,7 @@ const buildSettings = (
       updateViz();
 
       getSentry()?.captureMessage(
-        `Train ${viewportWidth < 850 ? '250k' : '1mm'} examples button clicked`
+        `Train ${viewportWidth < 800 ? '250k' : '1mm'} examples button clicked`
       );
       nnCtx.isRunning = true;
       const costs = await nnCtx.trainWithSourceFunction(sourceFn, 1_000, [0, 1]);
@@ -280,7 +289,7 @@ const buildSettings = (
       setOutputData({ responseMatrix, costs });
 
       const batchSize = 25_000;
-      const iters = viewportWidth < 850 ? 10 : 40;
+      const iters = viewportWidth < 800 ? 10 : 40;
       const batchCosts: Float32Array[] = [];
       for (let i = 0; i < iters; i++) {
         const costs = await nnCtx.trainWithSourceFunction(sourceFn, batchSize, [0, 1]);

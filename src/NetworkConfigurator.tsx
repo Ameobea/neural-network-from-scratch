@@ -17,6 +17,7 @@ import './NetworkConfigurator.css';
 import type { NNContext } from './NNContext';
 import { getSentry } from './sentry';
 import ExpandCollapseButton from './Components/ExpandCollapseButton';
+import { MOBILE_CUTOFF_PX } from './sizing';
 
 interface NetworkConfiguratorProps {
   nnCtx: NNContext;
@@ -146,7 +147,6 @@ interface OutputLayerConfiguratorProps {
 }
 
 const OUTPUT_LAYER_SETTINGS = [
-  // { type: 'range', label: 'neuron count', min: 1, max: 5, step: 1 },
   {
     type: 'select',
     label: 'activation function',
@@ -162,13 +162,15 @@ const OUTPUT_LAYER_SETTINGS = [
       ameo: ActivationFunctionType.Ameo,
     },
   },
-  {
-    type: 'select',
-    label: 'cost function',
-    options: {
-      'mean squared error': CostFunctionType.MeanSquaredError,
-    },
-  },
+  window.innerWidth < MOBILE_CUTOFF_PX
+    ? null
+    : {
+        type: 'select',
+        label: 'cost function',
+        options: {
+          'mean squared error': CostFunctionType.MeanSquaredError,
+        },
+      },
   {
     type: 'range',
     label: 'learning rate',
@@ -177,7 +179,7 @@ const OUTPUT_LAYER_SETTINGS = [
     max: 1,
     initial: 0.5,
   },
-];
+].filter(x => x);
 
 const OutputLayerConfigurator: React.FC<OutputLayerConfiguratorProps> = ({ layer, onChange }) => {
   const state = useMemo(
