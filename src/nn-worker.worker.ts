@@ -12,8 +12,11 @@ import {
   buildWeightInitParts,
   NeuralNetworkDefinition,
 } from './types';
+import { getHasSIMDSupport } from './util';
 
-const engineModule = import('./wasm_interface');
+const engineModule = getHasSIMDSupport()
+  ? import('./wasm_interface')
+  : import('./wasm_interface_no_simd/wasm_interface');
 
 export class NNWorkerCtx {
   private engine: typeof import('./wasm_interface');

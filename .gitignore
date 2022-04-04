@@ -3,3 +3,4 @@ node_modules
 engine/target
 build
 src/wasm_interface*
+!src/wasm_interface_no_simd/.gitkeep

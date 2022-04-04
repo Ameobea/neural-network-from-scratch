@@ -8,9 +8,13 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = { version = "=0.2.78", features = ["nightly"] }
-libnn = { path = "../libnn" }
+libnn = { path = "../libnn", default_features = false, features = [] }
 rand = { version = "0.7", default_features = false, features = ["alloc"] }
 console_error_panic_hook = "0.1"
 pcg = "4.0"
 palette = "0.6"
 fastapprox = "0.3"
+
+[features]
+default = ["simd"]
+simd = ["libnn/simd"]
