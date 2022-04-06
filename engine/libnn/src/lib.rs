@@ -357,22 +357,21 @@ impl DenseLayer {
     #[cfg(not(all(target_arch = "wasm32", feature = "simd")))]
     pub fn compute_gradients(&mut self, output_weights: &[Vec<Weight>], gradient_of_output_neurons: &[Weight]) {
         debug_assert_eq!(output_weights.len(), gradient_of_output_neurons.len());
-        debug_assert_eq!(self.weights.len(), output_weights[0].len());
 
-        for neuron_ix in 0..self.weights.len() {
-            let output_before_activation = self.outputs_before_activation[neuron_ix];
+        for output_neuron_ix in 0..output_weights[0].len() {
+            let output_before_activation = self.outputs_before_activation[output_neuron_ix];
             let mut error = 0.;
 
             for output_ix in 0..gradient_of_output_neurons.len() {
                 let output_neuron = &output_weights[output_ix];
-                let output_weight = output_neuron[neuron_ix];
+                let output_weight = output_neuron[output_neuron_ix];
                 // How much the output weight we're connected to contributes to the gradient of the
                 // neuron it's connected to.
                 error += output_weight * gradient_of_output_neurons[output_ix];
             }
 
             let gradient = self.compute_neuron_gradient(output_before_activation, error);
-            self.neuron_gradients[neuron_ix] = gradient;
+            self.neuron_gradients[output_neuron_ix] = gradient;
         }
     }
 
