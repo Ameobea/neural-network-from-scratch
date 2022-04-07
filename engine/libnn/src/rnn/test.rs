@@ -1,12 +1,12 @@
 use rand::Rng;
 
-use super::{RecurrentLayer, RecurrentNetwork};
+use super::{RecurrentLayer, RecurrentNetwork, RecurrentTreeLayerDef};
 use crate::{OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR};
 
 fn build_test_network(input_size: usize, output_size: usize, state_size: usize) -> RecurrentNetwork {
-    let mut init_recurrent_weights =
+    let init_recurrent_weights =
         |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(0.0, 0.1) };
-    let mut init_recurrent_biases = |_output_ix: usize| -> Weight { 0. };
+    let init_recurrent_biases = |_output_ix: usize| -> Weight { 0. };
     let recurrent_activation_fn = &IDENTITY;
 
     let mut init_output_weights =
@@ -14,13 +14,19 @@ fn build_test_network(input_size: usize, output_size: usize, state_size: usize) 
     let mut init_output_biases = |_output_ix: usize| -> Weight { 0. };
     let output_activation_fn = &IDENTITY;
 
+    let recurrent_layer_def = vec![RecurrentTreeLayerDef {
+        input_count: input_size + state_size,
+        output_count: state_size,
+        init_weights: Box::new(init_recurrent_weights),
+        init_biases: Box::new(init_recurrent_biases),
+        activation_fn: recurrent_activation_fn,
+    }];
+
     RecurrentNetwork {
         recurrent_layer: RecurrentLayer::new(
             output_size,
             input_size,
-            &mut init_recurrent_weights,
-            &mut init_recurrent_biases,
-            recurrent_activation_fn,
+            recurrent_layer_def,
             &mut init_output_weights,
             &mut init_output_biases,
             output_activation_fn,
@@ -159,9 +165,12 @@ fn rnn_sanity_output_last_value() {
 
     println!(
         "\nRECURRENT WEIGHTS: {:?}",
-        network.recurrent_layer.recurrent_tree.weights
+        network.recurrent_layer.recurrent_tree.weights()
     );
-    println!("RECURRENT BIASES: {:?}", network.recurrent_layer.recurrent_tree.biases);
+    println!(
+        "RECURRENT BIASES: {:?}",
+        network.recurrent_layer.recurrent_tree.biases()
+    );
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
     println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
     println!("FINAL STATE: {:?}", network.recurrent_layer.state);
@@ -225,9 +234,12 @@ fn rnn_sanity_output_2_steps_back() {
 
     println!(
         "\nRECURRENT WEIGHTS: {:?}",
-        network.recurrent_layer.recurrent_tree.weights
+        network.recurrent_layer.recurrent_tree.weights()
     );
-    println!("RECURRENT BIASES: {:?}", network.recurrent_layer.recurrent_tree.biases);
+    println!(
+        "RECURRENT BIASES: {:?}",
+        network.recurrent_layer.recurrent_tree.biases()
+    );
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
     println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
     println!("FINAL STATE: {:?}", network.recurrent_layer.state);
