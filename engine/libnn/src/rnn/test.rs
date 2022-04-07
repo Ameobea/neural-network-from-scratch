@@ -114,17 +114,17 @@ fn rnn_sanity_output_identity() {
 fn rnn_sanity_output_last_value() {
     let input_size = 1;
     let output_size = 1;
-    let state_size = 2;
-    let learning_rate = 0.1;
+    let state_size = 4;
+    let learning_rate = 0.05;
     let mut network = build_test_network(input_size, output_size, state_size);
 
     fn gen_training_data() -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
-        let sequence_len = rand::thread_rng().gen_range(2usize, 10usize);
+        let sequence_len = rand::thread_rng().gen_range(3usize, 4usize);
         let mut training_sequence = Vec::with_capacity(sequence_len);
         let mut expected_outputs = Vec::with_capacity(sequence_len);
 
         for i in 0..sequence_len {
-            training_sequence.push(vec![rand::thread_rng().gen_range(0., 1.)]);
+            training_sequence.push(vec![rand::thread_rng().gen_range(-1., 1.)]);
             if i == 0 {
                 expected_outputs.push(None);
             } else {
@@ -142,7 +142,7 @@ fn rnn_sanity_output_last_value() {
     println!("initial outputs before training: {:?}", network.outputs);
 
     let mut cost = initial_total_cost;
-    for i in 0..10000 {
+    for i in 0..5000 {
         let (training_sequence, expected_outputs) = gen_training_data();
         cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
         if cost.is_nan() {
@@ -156,20 +156,50 @@ fn rnn_sanity_output_last_value() {
             "[{}] expected: {:?}",
             i,
             expected_outputs
+                .clone()
                 .into_iter()
                 .map(|o| o.unwrap_or_else(|| vec![-0.]))
                 .collect::<Vec<_>>()
                 .as_slice()
         );
+        // println!(
+        //     "\nRECURRENT WEIGHTS: {:?}",
+        //     network.recurrent_layer.recurrent_tree.all_layer_weights()
+        // );
+        // println!(
+        //     "RECURRENT BIASES: {:?}",
+        //     network.recurrent_layer.recurrent_tree.all_layer_biases()
+        // );
+        // println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
+        // println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
+        // println!("FINAL STATE: {:?}", network.recurrent_layer.state);
+
+        // let new_cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
+        // if new_cost > cost {
+        //     println!("\nCOST REGRESSION\n");
+        //     println!(
+        //         "\nRECURRENT WEIGHTS: {:?}",
+        //         network.recurrent_layer.recurrent_tree.all_layer_weights()
+        //     );
+        //     println!(
+        //         "RECURRENT BIASES: {:?}",
+        //         network.recurrent_layer.recurrent_tree.all_layer_biases()
+        //     );
+        //     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
+        //     println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
+        //     println!("FINAL STATE: {:?}", network.recurrent_layer.state);
+
+        //     panic!();
+        // }
     }
 
     println!(
         "\nRECURRENT WEIGHTS: {:?}",
-        network.recurrent_layer.recurrent_tree.weights()
+        network.recurrent_layer.recurrent_tree.all_layer_weights()
     );
     println!(
         "RECURRENT BIASES: {:?}",
-        network.recurrent_layer.recurrent_tree.biases()
+        network.recurrent_layer.recurrent_tree.all_layer_biases()
     );
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
     println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
@@ -183,12 +213,12 @@ fn rnn_sanity_output_last_value() {
 fn rnn_sanity_output_2_steps_back() {
     let input_size = 1;
     let output_size = 1;
-    let state_size = 4;
+    let state_size = 2;
     let learning_rate = 0.05;
     let mut network = build_test_network(input_size, output_size, state_size);
 
     fn gen_training_data() -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
-        let sequence_len = rand::thread_rng().gen_range(3usize, 10usize);
+        let sequence_len = rand::thread_rng().gen_range(3usize, 4usize);
         let mut training_sequence = Vec::with_capacity(sequence_len);
         let mut expected_outputs = Vec::with_capacity(sequence_len);
 
@@ -234,11 +264,11 @@ fn rnn_sanity_output_2_steps_back() {
 
     println!(
         "\nRECURRENT WEIGHTS: {:?}",
-        network.recurrent_layer.recurrent_tree.weights()
+        network.recurrent_layer.recurrent_tree.all_layer_weights()
     );
     println!(
         "RECURRENT BIASES: {:?}",
-        network.recurrent_layer.recurrent_tree.biases()
+        network.recurrent_layer.recurrent_tree.all_layer_biases()
     );
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
     println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);

@@ -3,51 +3,89 @@ use crate::{ActivationFunction, DenseLayer, OutputLayer, Weight};
 #[cfg(test)]
 mod test;
 
-pub struct RecurrentTree(Vec<DenseLayer>);
+pub struct RecurrentTree {
+    layers: Vec<DenseLayer>,
+    neuron_gradients_by_layer_by_step_ix: Vec<Vec<Vec<Weight>>>,
+}
 
 impl RecurrentTree {
     pub fn new(mut def: Vec<RecurrentTreeLayerDef>) -> Self {
-        Self(def.iter_mut().map(|def| def.build_layer()).collect())
+        Self {
+            layers: def.iter_mut().map(|def| def.build_layer()).collect(),
+            neuron_gradients_by_layer_by_step_ix: Vec::new(),
+        }
     }
 
     pub fn forward_propagate(&mut self, inputs: &[f32]) {
         let mut inputs = inputs;
-        for layer in &mut self.0 {
+        for layer in &mut self.layers {
             layer.forward_propagate(inputs);
             inputs = &layer.outputs;
         }
     }
 
-    pub fn weights(&self) -> &[Vec<f32>] { &self.0.first().unwrap().weights }
+    pub fn first_layer_weights(&self) -> &[Vec<f32>] { &self.layers.first().unwrap().weights }
 
-    pub fn biases(&self) -> &[f32] { &self.0.first().unwrap().biases }
+    pub fn all_layer_weights(&self) -> Vec<Vec<Vec<Weight>>> {
+        self.layers.iter().map(|layer| layer.weights.clone()).collect()
+    }
 
-    pub fn outputs(&self) -> &[f32] { &self.0.last().unwrap().outputs }
+    pub fn all_layer_biases(&self) -> Vec<Vec<f32>> { self.layers.iter().map(|layer| layer.biases.clone()).collect() }
 
-    pub fn compute_gradients(&mut self, output_weights: &[Vec<f32>], gradient_of_output_neurons: &[f32]) {
+    pub fn outputs(&self) -> &[f32] { &self.layers.last().unwrap().outputs }
+
+    pub fn compute_gradients(
+        &mut self,
+        output_weights: &[Vec<f32>],
+        gradient_of_output_neurons: &[f32],
+        step_ix: usize,
+    ) {
         let mut output_weights = output_weights;
         let mut gradient_of_output_neurons = gradient_of_output_neurons;
-        for layer in self.0.iter_mut().rev() {
+        for layer in self.layers.iter_mut().rev() {
             layer.compute_gradients(output_weights, gradient_of_output_neurons);
             output_weights = layer.weights.as_slice();
             gradient_of_output_neurons = &layer.neuron_gradients.as_slice();
         }
+
+        while self.neuron_gradients_by_layer_by_step_ix.len() <= step_ix {
+            self.neuron_gradients_by_layer_by_step_ix.push(Vec::new());
+        }
+        self.neuron_gradients_by_layer_by_step_ix[step_ix] =
+            self.layers.iter().map(|layer| layer.neuron_gradients.clone()).collect();
     }
 
-    pub fn neuron_gradients(&self) -> &[f32] { &self.0.first().unwrap().neuron_gradients }
+    pub fn neuron_gradients(&self) -> &[f32] { &self.layers.first().unwrap().neuron_gradients }
 
-    pub fn update_weights_and_biases(&mut self, inputs: &[f32], learning_rate: f32) {
-        for hidden_layer_ix in (0..self.0.len()).rev() {
-            let inputs = if hidden_layer_ix == 0 {
+    pub fn update_weights_and_biases(
+        &mut self,
+        inputs: &[f32],
+        learning_rate: f32,
+        step_ix: usize,
+        sequence_len: usize,
+    ) {
+        if step_ix == sequence_len - 1 {
+            // Recurrent tree has no gradient at the last step in the sequence since its output is not used
+            return;
+        }
+
+        for layer_ix in (0..self.layers.len()).rev() {
+            let inputs = if layer_ix == 0 {
                 inputs
             } else {
                 // I don't care about lifetimes here, we only mutate the output
-                let slice = self.0[hidden_layer_ix - 1].outputs.as_slice();
+                let slice = self.layers[layer_ix - 1].outputs.as_slice();
                 unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
             };
-            let hidden_layer = &mut self.0[hidden_layer_ix];
-            hidden_layer.update_weights(inputs, learning_rate);
-            hidden_layer.update_biases(learning_rate);
+            let layer = &mut self.layers[layer_ix];
+
+            layer
+                .neuron_gradients
+                .copy_from_slice(self.neuron_gradients_by_layer_by_step_ix[step_ix][layer_ix].as_slice());
+
+            layer.update_weights(inputs, learning_rate);
+            // TODO: re-enable
+            // hidden_layer.update_biases(learning_rate);
         }
     }
 }
@@ -170,45 +208,52 @@ impl RecurrentLayer {
         self.computed_output_gradients = Vec::with_capacity(self.prev_states.len());
         self.computed_recurrent_gradients = Vec::with_capacity(self.prev_states.len());
 
-        // Output -> Output gradients are computed using the provided gradient of the next external layer
-        self.output_tree
-            .compute_gradients(output_output_weights, output_gradient_of_output_neurons.last().unwrap());
-        self.computed_output_gradients
-            .push(self.output_tree.neuron_gradients.clone());
-
-        // Recurrent -> Output gradients are computed using the provided gradient of the next external layer
-        self.recurrent_tree
-            .compute_gradients(output_output_weights, output_gradient_of_output_neurons.last().unwrap());
-        self.computed_recurrent_gradients
-            .push(self.recurrent_tree.neuron_gradients().to_owned());
-        // Recurrent -> Recurrent gradients are 0 for the last step since we don't care about the state at the end of
-        // the sequence.
-
-        let recurrent_recursvely_connected_weights: Vec<_> = self
+        let recurrent_tree_to_recurrent_tree_connected_weights: Vec<_> = self
             .recurrent_tree
-            .weights()
+            .first_layer_weights()
+            .iter()
+            .map(|weights| weights[..self.state.len()].to_owned())
+            .collect();
+        let recurrent_tree_to_output_tree_connected_weights: Vec<_> = self
+            .output_tree
+            .weights
             .iter()
             .map(|weights| weights[..self.state.len()].to_owned())
             .collect();
 
+        // Output -> Output gradients are computed using the provided gradient of the next external layer
+        self.output_tree.compute_gradients(
+            output_output_weights,
+            &output_gradient_of_output_neurons[sequence_len - 1],
+        );
+        self.computed_output_gradients
+            .push(self.output_tree.neuron_gradients.clone());
+
+        // Recurrent -> Output gradients are 0 since the recurrent neuron is basically unconnected at the last step of
+        // the sequence.
+        //
+        // Recurrent -> Recurrent gradients are also 0 for the last step since we don't care about the state at the end
+        // of the sequence.
+        self.computed_recurrent_gradients
+            .push(vec![0.; self.recurrent_tree.neuron_gradients().len()]);
+
         // Continue iterating backwards through the sequence, computing gradients for each step using the gradients of
         // the step after it.
-        for i in (0..sequence_len).rev().skip(1) {
-            // Output -> Output gradients are computed using the provided gradient of the next external layer
-            self.output_tree
-                .compute_gradients(output_output_weights, &output_gradient_of_output_neurons[i]);
-            self.computed_output_gradients
-                .push(self.output_tree.neuron_gradients.clone());
-
+        for step_ix in (0..sequence_len).rev().skip(1) {
             // Recurrent -> Output gradients are computed using the provided gradient of the next external layer
-            self.recurrent_tree
-                .compute_gradients(output_output_weights, &output_gradient_of_output_neurons[i]);
+            self.recurrent_tree.compute_gradients(
+                &recurrent_tree_to_output_tree_connected_weights,
+                self.computed_output_gradients.last().unwrap(),
+                step_ix,
+            );
             let mut recurrent_to_output_gradients = self.recurrent_tree.neuron_gradients().to_owned();
+
             // Recurrent -> Recurrent gradients are computed using the gradients of the step after it and the parts of
             // its own weights that are connected to its own outputs.
             self.recurrent_tree.compute_gradients(
-                &recurrent_recursvely_connected_weights,
+                &recurrent_tree_to_recurrent_tree_connected_weights,
                 self.computed_recurrent_gradients.last().unwrap(),
+                step_ix,
             );
 
             // Combine the gradients
@@ -221,6 +266,12 @@ impl RecurrentLayer {
                 recurrent_to_output_gradients[i] /= 2.;
             }
             self.computed_recurrent_gradients.push(recurrent_to_output_gradients);
+
+            // Output -> Output gradients are computed using the provided gradient of the next external layer
+            self.output_tree
+                .compute_gradients(output_output_weights, &output_gradient_of_output_neurons[step_ix]);
+            self.computed_output_gradients
+                .push(self.output_tree.neuron_gradients.clone());
         }
 
         debug_assert_eq!(
@@ -233,7 +284,6 @@ impl RecurrentLayer {
     }
 
     pub fn update_weights(&mut self, learning_rate: Weight, sequence_len: usize) {
-        let learning_rate_multiplier = 1. / (sequence_len as f32);
         self.combined_inputs_scratch.fill(0.);
 
         for step_ix in 0..sequence_len {
@@ -249,20 +299,20 @@ impl RecurrentLayer {
             // Maybe we should accumulate the gradients into a scratch buffer instead of adding multiple times?
             for (neuron_ix, &neuron_gradient) in self.computed_output_gradients[step_ix].iter().enumerate() {
                 for (weight_ix, weight) in self.output_tree.weights[neuron_ix].iter_mut().enumerate() {
-                    *weight += learning_rate
-                        * learning_rate_multiplier
-                        * neuron_gradient
-                        * self.combined_inputs_scratch[weight_ix];
+                    *weight += learning_rate * neuron_gradient * self.combined_inputs_scratch[weight_ix];
                 }
             }
 
-            self.recurrent_tree
-                .update_weights_and_biases(&self.combined_inputs_scratch, learning_rate * learning_rate_multiplier);
+            self.recurrent_tree.update_weights_and_biases(
+                &self.combined_inputs_scratch,
+                learning_rate,
+                step_ix,
+                sequence_len,
+            );
         }
     }
 
     pub fn update_biases(&mut self, learning_rate: Weight, sequence_len: usize) {
-        let learning_rate_multiplier = 1. / (sequence_len as f32);
         for step_ix in 0..sequence_len {
             for neuron_ix in 0..self.output_tree.biases.len() {
                 // Each of these biases is added directly to what is fed into our activation function.
@@ -270,7 +320,7 @@ impl RecurrentLayer {
                 // whatever the derivative of the activation function is.  We want to update the bias to
                 // whatever value minimizes the gradient/error of this neuron.
                 self.output_tree.biases[neuron_ix] +=
-                    self.computed_output_gradients[step_ix][neuron_ix] * learning_rate * learning_rate_multiplier;
+                    self.computed_output_gradients[step_ix][neuron_ix] * learning_rate;
             }
         }
     }
@@ -346,14 +396,17 @@ impl RecurrentNetwork {
             .compute_gradients(&self.output_layer.weights, &output_gradients, sequence.len());
 
         assert_eq!(self.outputs.len(), self.recurrent_layer_outputs.len());
-        for i in 0..self.outputs.len() {
-            let inputs_to_output_layer = &self.recurrent_layer_outputs[i];
-            self.output_layer.update_weights(&inputs_to_output_layer, learning_rate);
-        }
+        // TODO: Re-enable
+        // for i in 0..self.outputs.len() {
+        //     let inputs_to_output_layer = &self.recurrent_layer_outputs[i];
+        //     self.output_layer
+        //         .update_weights(&inputs_to_output_layer, learning_rate * (1. / sequence.len() as f32));
+        // }
 
         // Update weights + biases of the recurrent layer
         self.recurrent_layer.update_weights(learning_rate, sequence.len());
-        self.recurrent_layer.update_biases(learning_rate, sequence.len());
+        // TODO: Re-enable
+        // self.recurrent_layer.update_biases(learning_rate, sequence.len());
 
         // That's it, we've successfully "learned"
         (total_cost / self.output_layer.costs.len() as Weight) / sequence.len() as Weight
