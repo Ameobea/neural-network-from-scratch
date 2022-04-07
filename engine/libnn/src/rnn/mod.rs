@@ -150,6 +150,7 @@ impl RecurrentLayer {
             );
             for i in 0..recurrent_to_output_gradients.len() {
                 recurrent_to_output_gradients[i] += self.recurrent_tree.neuron_gradients[i];
+                recurrent_to_output_gradients[i] /= 2.;
             }
             self.computed_recurrent_gradients.push(recurrent_to_output_gradients);
         }
@@ -164,7 +165,9 @@ impl RecurrentLayer {
     }
 
     pub fn update_weights(&mut self, learning_rate: Weight, sequence_len: usize) {
+        let learning_rate_multiplier = 1. / (sequence_len as f32);
         self.combined_inputs_scratch.fill(0.);
+
         for step_ix in 0..sequence_len {
             // TODO: Don't need to copy inputs into a buffer; can just use the slices directly
             if step_ix == 0 {
@@ -178,19 +181,26 @@ impl RecurrentLayer {
             // Maybe we should accumulate the gradients into a scratch buffer instead of adding multiple times?
             for (neuron_ix, &neuron_gradient) in self.computed_output_gradients[step_ix].iter().enumerate() {
                 for (weight_ix, weight) in self.output_tree.weights[neuron_ix].iter_mut().enumerate() {
-                    *weight += learning_rate * neuron_gradient * self.combined_inputs_scratch[weight_ix];
+                    *weight += learning_rate
+                        * learning_rate_multiplier
+                        * neuron_gradient
+                        * self.combined_inputs_scratch[weight_ix];
                 }
             }
 
             for (neuron_ix, &neuron_gradient) in self.computed_recurrent_gradients[step_ix].iter().enumerate() {
                 for (weight_ix, weight) in self.recurrent_tree.weights[neuron_ix].iter_mut().enumerate() {
-                    *weight += learning_rate * neuron_gradient * self.combined_inputs_scratch[weight_ix];
+                    *weight += learning_rate
+                        * learning_rate_multiplier
+                        * neuron_gradient
+                        * self.combined_inputs_scratch[weight_ix];
                 }
             }
         }
     }
 
     pub fn update_biases(&mut self, learning_rate: Weight, sequence_len: usize) {
+        let learning_rate_multiplier = 1. / (sequence_len as f32);
         for step_ix in 0..sequence_len {
             for neuron_ix in 0..self.output_tree.biases.len() {
                 // Each of these biases is added directly to what is fed into our activation function.
@@ -198,7 +208,10 @@ impl RecurrentLayer {
                 // whatever the derivative of the activation function is.  We want to update the bias to
                 // whatever value minimizes the gradient/error of this neuron.
                 self.output_tree.biases[neuron_ix] +=
-                    self.computed_output_gradients[step_ix][neuron_ix] * learning_rate;
+                    self.computed_output_gradients[step_ix][neuron_ix] * learning_rate * learning_rate_multiplier;
+
+                self.recurrent_tree.biases[neuron_ix] +=
+                    self.computed_recurrent_gradients[step_ix][neuron_ix] * learning_rate * learning_rate_multiplier;
             }
         }
     }

@@ -1,7 +1,7 @@
 use rand::Rng;
 
 use super::{RecurrentLayer, RecurrentNetwork};
-use crate::{OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR, SIGMOID};
+use crate::{OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR};
 
 fn build_test_network(input_size: usize, output_size: usize, state_size: usize) -> RecurrentNetwork {
     let mut init_recurrent_weights =
@@ -56,7 +56,7 @@ fn rnn_sanity_output_zero() {
     println!("initial outputs before training: {:?}", network.outputs);
 
     let mut last_iter_cost = initial_total_cost;
-    for i in 0..10 {
+    for i in 0..100 {
         let new_cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
         println!("[{}] cost: {}", i, new_cost);
         println!("[{}] outputs: {:?}", i, network.outputs);
@@ -74,22 +74,33 @@ fn rnn_sanity_output_identity() {
     let learning_rate = 0.05;
     let mut network = build_test_network(input_size, output_size, state_size);
 
-    let training_sequence = vec![vec![1.], vec![0.5], vec![1.], vec![0.5]];
-    let expected_outputs = vec![Some(vec![1.]), Some(vec![0.5]), Some(vec![1.]), Some(vec![0.5])];
+    fn gen_training_data() -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
+        let sequence_len = 4;
+        let mut training_sequence = Vec::with_capacity(sequence_len);
 
+        for _ in 0..sequence_len {
+            training_sequence.push(vec![rand::thread_rng().gen_range(-1., 1.)]);
+        }
+        let expected_sequence = training_sequence.iter().map(|v| Some(v.clone())).collect();
+
+        (training_sequence, expected_sequence)
+    }
+
+    let (training_sequence, expected_outputs) = gen_training_data();
     let (initial_total_cost, _output_gradients) =
         network.forward_propagate(&training_sequence, Some(&expected_outputs));
     println!("initial cost before training: {}", initial_total_cost);
     println!("initial outputs before training: {:?}", network.outputs);
 
     let mut last_iter_cost = initial_total_cost;
-    for i in 0..300 {
+    for i in 0..2000 {
+        let (training_sequence, expected_outputs) = gen_training_data();
         let new_cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
         println!("[{}] cost: {}", i, new_cost);
         println!("[{}] outputs: {:?}", i, network.outputs);
         last_iter_cost = new_cost;
     }
-    assert!(last_iter_cost < 0.0001);
+    assert!(last_iter_cost < 0.001);
 }
 
 /// Output previous value in the sequence
@@ -97,8 +108,8 @@ fn rnn_sanity_output_identity() {
 fn rnn_sanity_output_last_value() {
     let input_size = 1;
     let output_size = 1;
-    let state_size = 1;
-    let learning_rate = 0.05;
+    let state_size = 2;
+    let learning_rate = 0.1;
     let mut network = build_test_network(input_size, output_size, state_size);
 
     fn gen_training_data() -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
@@ -107,7 +118,7 @@ fn rnn_sanity_output_last_value() {
         let mut expected_outputs = Vec::with_capacity(sequence_len);
 
         for i in 0..sequence_len {
-            training_sequence.push(vec![rand::thread_rng().gen_range(-1., 1.)]);
+            training_sequence.push(vec![rand::thread_rng().gen_range(0., 1.)]);
             if i == 0 {
                 expected_outputs.push(None);
             } else {
@@ -125,7 +136,7 @@ fn rnn_sanity_output_last_value() {
     println!("initial outputs before training: {:?}", network.outputs);
 
     let mut cost = initial_total_cost;
-    for i in 0..1000 {
+    for i in 0..10000 {
         let (training_sequence, expected_outputs) = gen_training_data();
         cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
         if cost.is_nan() {
@@ -145,14 +156,17 @@ fn rnn_sanity_output_last_value() {
                 .as_slice()
         );
     }
-    assert!(cost < 0.001);
 
     println!(
         "\nRECURRENT WEIGHTS: {:?}",
         network.recurrent_layer.recurrent_tree.weights
     );
+    println!("RECURRENT BIASES: {:?}", network.recurrent_layer.recurrent_tree.biases);
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
+    println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
     println!("FINAL STATE: {:?}", network.recurrent_layer.state);
+
+    assert!(cost < 0.001);
 }
 
 /// Output value seen 2 steps ago
@@ -160,12 +174,12 @@ fn rnn_sanity_output_last_value() {
 fn rnn_sanity_output_2_steps_back() {
     let input_size = 1;
     let output_size = 1;
-    let state_size = 2;
-    let learning_rate = 0.01;
+    let state_size = 4;
+    let learning_rate = 0.05;
     let mut network = build_test_network(input_size, output_size, state_size);
 
     fn gen_training_data() -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
-        let sequence_len = rand::thread_rng().gen_range(2usize, 10usize);
+        let sequence_len = rand::thread_rng().gen_range(3usize, 10usize);
         let mut training_sequence = Vec::with_capacity(sequence_len);
         let mut expected_outputs = Vec::with_capacity(sequence_len);
 
@@ -188,7 +202,7 @@ fn rnn_sanity_output_2_steps_back() {
     println!("initial outputs before training: {:?}", network.outputs);
 
     let mut last_iter_cost = initial_total_cost;
-    for i in 0..1000 {
+    for i in 0..5000 {
         let (training_sequence, expected_outputs) = gen_training_data();
         let new_cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
         if new_cost.is_nan() {
@@ -213,19 +227,10 @@ fn rnn_sanity_output_2_steps_back() {
         "\nRECURRENT WEIGHTS: {:?}",
         network.recurrent_layer.recurrent_tree.weights
     );
+    println!("RECURRENT BIASES: {:?}", network.recurrent_layer.recurrent_tree.biases);
     println!("OUTPUT WEIGHTS: {:?}", network.recurrent_layer.output_tree.weights);
+    println!("OUTPUT BIASES: {:?}", network.recurrent_layer.output_tree.biases);
     println!("FINAL STATE: {:?}", network.recurrent_layer.state);
 
     assert!(last_iter_cost < 0.001);
-}
-
-#[test]
-fn rnn_memory_conditional() {
-    let input_size = 1;
-    let output_size = 1;
-    let state_size = 4;
-    let learning_rate = 0.01;
-    let mut network = build_test_network(input_size, output_size, state_size);
-
-    // fn gen_training_data() -> Vec<()
 }
