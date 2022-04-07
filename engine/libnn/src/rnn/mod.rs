@@ -19,10 +19,12 @@ impl RecurrentLayer {
     pub fn new(
         output_count: usize,
         input_count: usize,
-        // TODO: Separate params + initializers for recurrent + output trees
-        init_weights: &mut impl FnMut(usize, usize) -> Weight,
-        init_biases: &mut impl FnMut(usize) -> Weight,
-        activation_fn: &'static dyn ActivationFunction,
+        init_recurrent_weights: &mut impl FnMut(usize, usize) -> Weight,
+        init_recurrent_biases: &mut impl FnMut(usize) -> Weight,
+        recurrent_activation_fn: &'static dyn ActivationFunction,
+        init_output_weights: &mut impl FnMut(usize, usize) -> Weight,
+        init_output_biases: &mut impl FnMut(usize) -> Weight,
+        output_activation_fn: &'static dyn ActivationFunction,
         state_size: usize,
     ) -> Self {
         // State always initialized to all zeros for now
@@ -33,16 +35,16 @@ impl RecurrentLayer {
             recurrent_tree: DenseLayer::new(
                 state_size,
                 input_count + state_size,
-                init_weights,
-                init_biases,
-                activation_fn,
+                init_recurrent_weights,
+                init_recurrent_biases,
+                recurrent_activation_fn,
             ),
             output_tree: DenseLayer::new(
                 output_count,
                 input_count + state_size,
-                init_weights,
-                init_biases,
-                activation_fn,
+                init_output_weights,
+                init_output_biases,
+                output_activation_fn,
             ),
             combined_inputs_scratch: vec![0.; input_count + state_size],
             sequence_inputs: Vec::new(),
@@ -86,6 +88,7 @@ impl RecurrentLayer {
         &mut self,
         output_output_weights: &[Vec<Weight>],
         output_gradient_of_output_neurons: &[Vec<Weight>],
+        sequence_len: usize,
     ) {
         // Iterate backwards through the sequence, computing gradients for each step.
         //
@@ -122,7 +125,7 @@ impl RecurrentLayer {
 
         // Continue iterating backwards through the sequence, computing gradients for each step using the gradients of
         // the step after it.
-        for i in (0..self.prev_states.len()).rev().skip(1) {
+        for i in (0..sequence_len).rev().skip(1) {
             // Output -> Output gradients are computed using the provided gradient of the next external layer
             self.output_tree
                 .compute_gradients(output_output_weights, &output_gradient_of_output_neurons[i]);
@@ -160,10 +163,9 @@ impl RecurrentLayer {
         self.computed_recurrent_gradients.reverse();
     }
 
-    pub fn update_weights(&mut self, learning_rate: Weight) {
-        let step_count = self.prev_states.len();
+    pub fn update_weights(&mut self, learning_rate: Weight, sequence_len: usize) {
         self.combined_inputs_scratch.fill(0.);
-        for step_ix in 0..step_count {
+        for step_ix in 0..sequence_len {
             // TODO: Don't need to copy inputs into a buffer; can just use the slices directly
             if step_ix == 0 {
                 // Internal state is initialized to 0 at the first step of the sequence
@@ -188,14 +190,24 @@ impl RecurrentLayer {
         }
     }
 
-    pub fn update_biases(&mut self, learning_rate: Weight) {
-        // TODO
+    pub fn update_biases(&mut self, learning_rate: Weight, sequence_len: usize) {
+        for step_ix in 0..sequence_len {
+            for neuron_ix in 0..self.output_tree.biases.len() {
+                // Each of these biases is added directly to what is fed into our activation function.
+                // The impact that it will have on the output of this neuron is equal to
+                // whatever the derivative of the activation function is.  We want to update the bias to
+                // whatever value minimizes the gradient/error of this neuron.
+                self.output_tree.biases[neuron_ix] +=
+                    self.computed_output_gradients[step_ix][neuron_ix] * learning_rate;
+            }
+        }
     }
 }
 
 pub struct RecurrentNetwork {
     pub recurrent_layer: RecurrentLayer,
     pub output_layer: Box<OutputLayer>,
+    pub recurrent_layer_outputs: Vec<Vec<Weight>>,
     pub outputs: Vec<Vec<Weight>>,
 }
 
@@ -204,8 +216,11 @@ impl RecurrentNetwork {
     pub fn forward_propagate(
         &mut self,
         sequence: &[Vec<Weight>],
-        expected_sequence: Option<&[Vec<Weight>]>,
+        expected_sequence: Option<&[Option<Vec<Weight>>]>,
     ) -> (f32, Vec<Vec<f32>>) {
+        // Reset state in recurrent layer to its default value
+        self.recurrent_layer.reset();
+
         let mut output_gradients = Vec::new();
         let mut total_costs = 0.;
 
@@ -217,12 +232,23 @@ impl RecurrentNetwork {
                 Some(slot) => slot.copy_from_slice(&self.output_layer.outputs),
                 None => self.outputs.push(self.output_layer.outputs.clone()),
             }
+            match self.recurrent_layer_outputs.get_mut(step_ix) {
+                Some(slot) => slot.copy_from_slice(&self.recurrent_layer.get_outputs()),
+                None => self
+                    .recurrent_layer_outputs
+                    .push(self.recurrent_layer.get_outputs().to_owned()),
+            }
 
             if let Some(expected_sequence) = expected_sequence {
-                self.output_layer.compute_costs(&expected_sequence[step_ix]);
-                total_costs += self.output_layer.costs.iter().fold(0., |acc, cost| acc + *cost);
-                self.output_layer.compute_gradients();
-                output_gradients.push(self.output_layer.neuron_gradients.clone());
+                let gradients = if let Some(expected_output) = &expected_sequence[step_ix] {
+                    self.output_layer.compute_costs(expected_output);
+                    total_costs += self.output_layer.costs.iter().fold(0., |acc, cost| acc + *cost);
+                    self.output_layer.compute_gradients();
+                    self.output_layer.neuron_gradients.clone()
+                } else {
+                    vec![0.; self.output_layer.neuron_gradients.len()]
+                };
+                output_gradients.push(gradients);
             }
         }
 
@@ -234,11 +260,10 @@ impl RecurrentNetwork {
     pub fn train_one_sequence(
         &mut self,
         sequence: &[Vec<Weight>],
-        expected_sequence: &[Vec<Weight>],
+        expected_sequence: &[Option<Vec<Weight>>],
         learning_rate: Weight,
     ) -> Weight {
-        // Reset state in recurrent layer to its default value
-        self.recurrent_layer.reset();
+        assert_eq!(sequence.len(), expected_sequence.len());
 
         // Run the sequence all the way through the network, populating outputs and keeping track of output layer
         // gradients for each step
@@ -246,16 +271,20 @@ impl RecurrentNetwork {
 
         // The compute gradients of the recurrent layer for each step of the sequence
         self.recurrent_layer
-            .compute_gradients(&self.output_layer.weights, &output_gradients);
+            .compute_gradients(&self.output_layer.weights, &output_gradients, sequence.len());
 
-        // TODO: Update the weights of the output layer
+        assert_eq!(self.outputs.len(), self.recurrent_layer_outputs.len());
+        for i in 0..self.outputs.len() {
+            let inputs_to_output_layer = &self.recurrent_layer_outputs[i];
+            self.output_layer.update_weights(&inputs_to_output_layer, learning_rate);
+        }
 
         // Update weights + biases of the recurrent layer
-        self.recurrent_layer.update_weights(learning_rate);
-        self.recurrent_layer.update_biases(learning_rate);
+        self.recurrent_layer.update_weights(learning_rate, sequence.len());
+        self.recurrent_layer.update_biases(learning_rate, sequence.len());
 
         // That's it, we've successfully "learned"
-        total_cost / self.output_layer.costs.len() as Weight
+        (total_cost / self.output_layer.costs.len() as Weight) / sequence.len() as Weight
     }
 
     pub fn predict(&mut self, sequence: &[Vec<Weight>]) -> &[Vec<Weight>] {

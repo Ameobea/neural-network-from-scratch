@@ -6,7 +6,7 @@ use core::arch::wasm32::*;
 use fast_math::sigmoid_approx;
 
 mod fast_math;
-mod rnn;
+pub mod rnn;
 #[cfg(test)]
 mod tests;
 

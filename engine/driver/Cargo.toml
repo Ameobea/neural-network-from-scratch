@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-rand = { version = "0.7", default_features = false, features = ["alloc"] }
+rand = { version = "0.7", default_features = false, features = ["alloc", "std"] }
+clap = "3.1"
 
 libnn = { path = "../libnn" }
