@@ -6,6 +6,7 @@ mod test;
 pub struct RecurrentTree {
     layers: Vec<DenseLayer>,
     neuron_gradients_by_layer_by_step_ix: Vec<Vec<Vec<Weight>>>,
+    layer_outputs_by_layer_by_step_ix: Vec<Vec<Vec<Weight>>>,
 }
 
 impl RecurrentTree {
@@ -13,15 +14,22 @@ impl RecurrentTree {
         Self {
             layers: def.iter_mut().map(|def| def.build_layer()).collect(),
             neuron_gradients_by_layer_by_step_ix: Vec::new(),
+            layer_outputs_by_layer_by_step_ix: Vec::new(),
         }
     }
 
-    pub fn forward_propagate(&mut self, inputs: &[f32]) {
+    pub fn forward_propagate(&mut self, inputs: &[f32], step_ix: usize) {
         let mut inputs = inputs;
         for layer in &mut self.layers {
             layer.forward_propagate(inputs);
             inputs = &layer.outputs;
         }
+
+        while self.layer_outputs_by_layer_by_step_ix.len() <= step_ix {
+            self.layer_outputs_by_layer_by_step_ix.push(Vec::new());
+        }
+        self.layer_outputs_by_layer_by_step_ix[step_ix] =
+            self.layers.iter().map(|layer| layer.outputs.clone()).collect();
     }
 
     pub fn first_layer_weights(&self) -> &[Vec<f32>] { &self.layers.first().unwrap().weights }
@@ -39,6 +47,7 @@ impl RecurrentTree {
         output_weights: &[Vec<f32>],
         gradient_of_output_neurons: &[f32],
         step_ix: usize,
+        accumulate: bool,
     ) {
         let mut output_weights = output_weights;
         let mut gradient_of_output_neurons = gradient_of_output_neurons;
@@ -51,8 +60,21 @@ impl RecurrentTree {
         while self.neuron_gradients_by_layer_by_step_ix.len() <= step_ix {
             self.neuron_gradients_by_layer_by_step_ix.push(Vec::new());
         }
-        self.neuron_gradients_by_layer_by_step_ix[step_ix] =
-            self.layers.iter().map(|layer| layer.neuron_gradients.clone()).collect();
+
+        if accumulate {
+            for (layer_ix, gradients_for_layer) in self.neuron_gradients_by_layer_by_step_ix[step_ix]
+                .iter_mut()
+                .enumerate()
+            {
+                for (neuron_ix, gradient) in gradients_for_layer.iter_mut().enumerate() {
+                    *gradient += self.layers[layer_ix].neuron_gradients[neuron_ix];
+                    *gradient /= 2.;
+                }
+            }
+        } else {
+            self.neuron_gradients_by_layer_by_step_ix[step_ix] =
+                self.layers.iter().map(|layer| layer.neuron_gradients.clone()).collect();
+        }
     }
 
     pub fn neuron_gradients(&self) -> &[f32] { &self.layers.first().unwrap().neuron_gradients }
@@ -74,7 +96,7 @@ impl RecurrentTree {
                 inputs
             } else {
                 // I don't care about lifetimes here, we only mutate the output
-                let slice = self.layers[layer_ix - 1].outputs.as_slice();
+                let slice = self.layer_outputs_by_layer_by_step_ix[step_ix][layer_ix - 1].as_slice();
                 unsafe { std::slice::from_raw_parts(slice.as_ptr(), slice.len()) }
             };
             let layer = &mut self.layers[layer_ix];
@@ -84,8 +106,7 @@ impl RecurrentTree {
                 .copy_from_slice(self.neuron_gradients_by_layer_by_step_ix[step_ix][layer_ix].as_slice());
 
             layer.update_weights(inputs, learning_rate);
-            // TODO: re-enable
-            // hidden_layer.update_biases(learning_rate);
+            // layer.update_biases(learning_rate);
         }
     }
 }
@@ -168,7 +189,8 @@ impl RecurrentLayer {
         self.combined_inputs_scratch[self.state.len()..].copy_from_slice(inputs);
 
         self.output_tree.forward_propagate(&self.combined_inputs_scratch);
-        self.recurrent_tree.forward_propagate(&self.combined_inputs_scratch);
+        self.recurrent_tree
+            .forward_propagate(&self.combined_inputs_scratch, index_in_sequence);
 
         // Save inputs + previous state for backpropagation
         if let Some(slot) = self.prev_states.get_mut(index_in_sequence) {
@@ -245,6 +267,7 @@ impl RecurrentLayer {
                 &recurrent_tree_to_output_tree_connected_weights,
                 self.computed_output_gradients.last().unwrap(),
                 step_ix,
+                false,
             );
             let mut recurrent_to_output_gradients = self.recurrent_tree.neuron_gradients().to_owned();
 
@@ -254,6 +277,7 @@ impl RecurrentLayer {
                 &recurrent_tree_to_recurrent_tree_connected_weights,
                 self.computed_recurrent_gradients.last().unwrap(),
                 step_ix,
+                true,
             );
 
             // Combine the gradients
@@ -397,15 +421,14 @@ impl RecurrentNetwork {
 
         assert_eq!(self.outputs.len(), self.recurrent_layer_outputs.len());
         // TODO: Re-enable
-        // for i in 0..self.outputs.len() {
-        //     let inputs_to_output_layer = &self.recurrent_layer_outputs[i];
-        //     self.output_layer
-        //         .update_weights(&inputs_to_output_layer, learning_rate * (1. / sequence.len() as f32));
-        // }
+        for i in 0..self.outputs.len() {
+            let inputs_to_output_layer = &self.recurrent_layer_outputs[i];
+            self.output_layer
+                .update_weights(&inputs_to_output_layer, learning_rate * (1. / sequence.len() as f32));
+        }
 
         // Update weights + biases of the recurrent layer
         self.recurrent_layer.update_weights(learning_rate, sequence.len());
-        // TODO: Re-enable
         // self.recurrent_layer.update_biases(learning_rate, sequence.len());
 
         // That's it, we've successfully "learned"

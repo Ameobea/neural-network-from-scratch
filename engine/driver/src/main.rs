@@ -3,7 +3,7 @@ use std::{io::BufRead, str::FromStr};
 use clap::Command;
 use libnn::{
     rnn::{RecurrentLayer, RecurrentNetwork, RecurrentTreeLayerDef},
-    DenseLayer, MeanSquaredError, Network, OutputLayer, Weight, IDENTITY, MEAN_SQUARED_ERROR, TANH,
+    DenseLayer, MeanSquaredError, Network, OutputLayer, Weight, IDENTITY, LEAKY_RELU, MEAN_SQUARED_ERROR, RELU, TANH,
 };
 use rand::prelude::*;
 
@@ -86,30 +86,23 @@ fn basic_network_demo() {
     }
 }
 
-fn rnn_2_ago(lookback: usize) {
+fn rnn_n_ago(lookback: usize) {
     let output_size = 1;
     let input_size = 1;
-    let state_size = 1;
-    let learning_rate = 0.05;
+    let state_size = 4;
+    let mut learning_rate;
 
     let init_recurrent_weights =
-        |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(0., 0.1) };
+        |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(-0.9, 0.9) };
     let init_recurrent_biases = |_output_ix: usize| -> Weight { 0. };
-    let recurrent_activation_fn = &IDENTITY;
+    let recurrent_activation_fn = &LEAKY_RELU;
 
     let mut init_output_weights =
-        |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(0., 0.1) };
+        |_output_ix: usize, _input_ix: usize| -> Weight { rand::thread_rng().gen_range(-0.9, 0.9) };
     let mut init_output_biases = |_output_ix: usize| -> Weight { 0. };
-    let output_activation_fn = &IDENTITY;
+    let output_activation_fn = &LEAKY_RELU;
 
     let recurrent_layer_def = vec![
-        // RecurrentTreeLayerDef {
-        //     input_count: input_size + state_size,
-        //     output_count: state_size * 2,
-        //     init_weights: Box::new(init_recurrent_weights),
-        //     init_biases: Box::new(init_recurrent_biases),
-        //     activation_fn: recurrent_activation_fn,
-        // },
         RecurrentTreeLayerDef {
             input_count: input_size + state_size,
             output_count: state_size,
@@ -117,6 +110,13 @@ fn rnn_2_ago(lookback: usize) {
             init_biases: Box::new(init_recurrent_biases),
             activation_fn: recurrent_activation_fn,
         },
+        // RecurrentTreeLayerDef {
+        //     input_count: state_size * 2,
+        //     output_count: state_size * 2,
+        //     init_weights: Box::new(init_recurrent_weights),
+        //     init_biases: Box::new(init_recurrent_biases),
+        //     activation_fn: recurrent_activation_fn,
+        // },
         // RecurrentTreeLayerDef {
         //     input_count: state_size,
         //     output_count: state_size,
@@ -148,13 +148,13 @@ fn rnn_2_ago(lookback: usize) {
     };
 
     fn gen_training_data(lookback: usize) -> (Vec<Vec<f32>>, Vec<Option<Vec<f32>>>) {
-        // let sequence_len = rand::thread_rng().gen_range(5usize, 5usize);
-        let sequence_len = 5;
+        let sequence_len = rand::thread_rng().gen_range(4usize, 10usize);
+        // let sequence_len = 5;
         let mut training_sequence = Vec::with_capacity(sequence_len);
         let mut expected_outputs = Vec::with_capacity(sequence_len);
 
         for i in 0..sequence_len {
-            let val = rand::thread_rng().gen_range(-1., 1.);
+            let val = rand::thread_rng().gen_range(0., 1.);
             training_sequence.push(vec![val]);
             if i < lookback {
                 expected_outputs.push(None);
@@ -166,13 +166,28 @@ fn rnn_2_ago(lookback: usize) {
         (training_sequence, expected_outputs)
     }
 
-    for i in 0..5000 {
-        let (training_sequence, expected_outputs) = gen_training_data(lookback);
-        let new_cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
-        if new_cost.is_nan() {
-            panic!();
+    let learning_rate_multiplier = 0.5;
+    let mut good_cost_count = 0;
+    for i in 0..50_000 {
+        if i < 20 {
+            learning_rate = 0.25;
+        } else if i < 50 {
+            learning_rate = 0.1;
+        } else if i < 500 {
+            learning_rate = 0.05
+        } else if i < 1000 {
+            learning_rate = 0.02;
+        } else {
+            learning_rate = 0.01;
         }
-        println!("\n[{}] cost: {}", i, new_cost);
+        learning_rate *= learning_rate_multiplier;
+
+        let (training_sequence, expected_outputs) = gen_training_data(lookback);
+        let cost = network.train_one_sequence(&training_sequence, &expected_outputs, learning_rate);
+        if cost.is_nan() {
+            panic!("Cost explosion");
+        }
+        println!("\n[{}] cost: {}", i, cost);
         println!("[{}] inputs: {:?}", i, training_sequence.as_slice());
         println!("[{}] outputs: {:?}", i, &network.outputs[..training_sequence.len()]);
         println!(
@@ -184,6 +199,15 @@ fn rnn_2_ago(lookback: usize) {
                 .collect::<Vec<_>>()
                 .as_slice()
         );
+
+        if cost < 0.001 {
+            good_cost_count += 1;
+        } else {
+            good_cost_count = 0;
+        }
+        if good_cost_count == 20 {
+            break;
+        }
     }
 
     println!(
@@ -224,13 +248,17 @@ pub fn main() {
     let mut app = Command::new("libnn driver")
         .subcommand(Command::new("basic"))
         .subcommand(Command::new("rnn-1-ago"))
-        .subcommand(Command::new("rnn-2-ago"));
+        .subcommand(Command::new("rnn-2-ago"))
+        .subcommand(Command::new("rnn-3-ago"))
+        .subcommand(Command::new("rnn-4-ago"));
     let cli = app.clone().get_matches();
 
     match cli.subcommand() {
         Some(("basic", _)) => basic_network_demo(),
-        Some(("rnn-1-ago", _)) => rnn_2_ago(1),
-        Some(("rnn-2-ago", _)) => rnn_2_ago(2),
+        Some(("rnn-1-ago", _)) => rnn_n_ago(1),
+        Some(("rnn-2-ago", _)) => rnn_n_ago(2),
+        Some(("rnn-3-ago", _)) => rnn_n_ago(3),
+        Some(("rnn-4-ago", _)) => rnn_n_ago(4),
         _ => {
             let _ = app.print_help();
             return;
