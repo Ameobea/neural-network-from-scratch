@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react';
-import { Integrations } from '@sentry/tracing';
 
 export const getSentry = (): typeof Sentry | undefined => {
   // Don't clutter up sentry logs with debug stuff
@@ -15,9 +14,5 @@ export const initSentry = () => {
     return;
   }
 
-  Sentry.init({
-    dsn: 'https://3c1aa58c5a6647288888b14f4dc44453@sentry.ameo.design/10',
-    integrations: [new Integrations.BrowserTracing()],
-    tracesSampleRate: 1.0,
-  });
+  Sentry.init({ dsn: 'https://3c1aa58c5a6647288888b14f4dc44453@sentry.ameo.design/10' });
 };
